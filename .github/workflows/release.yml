@@ -6,10 +6,12 @@ on:
       - 'v*.*.*'
 
 jobs:
-  # Python package үүсгэж PyPI руу оруулах
+  # Python package үүсгэж PyPI руу оруулах (сонголт)
   pypi-publish:
     name: Publish to PyPI
     runs-on: ubuntu-latest
+    # PyPI trusted publisher тохируулсан үед л ажиллана
+    if: false  # Эхлээд false болгох, PyPI тохируулсны дараа true болгох
     permissions:
       id-token: write
       contents: read
