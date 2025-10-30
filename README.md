@@ -26,7 +26,29 @@
 
 ## 🔧 Суулгах заавар
 
-### Хурдан эхлүүлэх (Quick Start)
+### 🐳 Docker-оор (Зөвлөмж)
+
+Хамгийн хялбар арга - Docker ашиглах:
+
+```bash
+# 1. Repository-г татах
+git clone https://github.com/btseee/mongolian-bank-exchange-rate.git
+cd mongolian-bank-exchange-rate
+
+# 2. .env файл үүсгэх
+cp .env.example .env
+
+# 3. Docker Compose-оор эхлүүлэх
+docker-compose up -d
+
+# 4. API шалгах
+curl http://localhost:8000
+# Эсвэл хөтөч нээж: http://localhost:8000/docs
+```
+
+**Дэлгэрэнгүй Docker заавар:** [DOCKER.md](DOCKER.md) харна уу.
+
+### 🐍 Хурдан эхлүүлэх (Quick Start)
 
 ```bash
 # 1. Репозиторийг татах

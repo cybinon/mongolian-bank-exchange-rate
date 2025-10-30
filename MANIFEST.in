@@ -1,0 +1,18 @@
+# Нэмэлт файлуудыг package-д оруулах
+include README.md
+include LICENSE
+include requirements.txt
+include .env.example
+include docker-compose.yml
+include Dockerfile
+include VERSION
+
+# Баримтжуулалт
+recursive-include docs *.md *.txt
+
+# Git файлуудыг алгасах
+global-exclude __pycache__
+global-exclude *.py[cod]
+global-exclude .DS_Store
+global-exclude *.db
+global-exclude *.sqlite

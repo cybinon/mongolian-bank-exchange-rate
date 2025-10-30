@@ -1,0 +1,101 @@
+# Монгол банкны ханшийн API - Docker Compose тохиргоо
+version: '3.8'
+
+services:
+  # API үйлчилгээ
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: mongolian-bank-api
+    ports:
+      - "8000:8000"
+    environment:
+      - DATABASE_URL=${DATABASE_URL:-postgresql://bankuser:bankpass123@db:5432/exchange_rates}
+      - CRON_SCHEDULE=${CRON_SCHEDULE:-0 1 * * *}
+      - SSL_VERIFY=${SSL_VERIFY:-False}
+      - REQUEST_TIMEOUT=${REQUEST_TIMEOUT:-30}
+      - PLAYWRIGHT_TIMEOUT=${PLAYWRIGHT_TIMEOUT:-60000}
+    depends_on:
+      db:
+        condition: service_healthy
+    volumes:
+      - ./logs:/app/logs
+    restart: unless-stopped
+    networks:
+      - bank-network
+    healthcheck:
+      test: ["CMD", "python", "-c", "import requests; requests.get('http://localhost:8000/', timeout=5)"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+  # Хуваарийн цуглуулагч
+  cron:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: mongolian-bank-cron
+    command: python cron.py
+    environment:
+      - DATABASE_URL=${DATABASE_URL:-postgresql://bankuser:bankpass123@db:5432/exchange_rates}
+      - CRON_SCHEDULE=${CRON_SCHEDULE:-0 1 * * *}
+      - SSL_VERIFY=${SSL_VERIFY:-False}
+      - REQUEST_TIMEOUT=${REQUEST_TIMEOUT:-30}
+      - PLAYWRIGHT_TIMEOUT=${PLAYWRIGHT_TIMEOUT:-60000}
+    depends_on:
+      db:
+        condition: service_healthy
+    volumes:
+      - ./logs:/app/logs
+    restart: unless-stopped
+    networks:
+      - bank-network
+
+  # PostgreSQL өгөгдлийн сан
+  db:
+    image: postgres:15-alpine
+    container_name: mongolian-bank-db
+    environment:
+      - POSTGRES_USER=${POSTGRES_USER:-bankuser}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-bankpass123}
+      - POSTGRES_DB=${POSTGRES_DB:-exchange_rates}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+    restart: unless-stopped
+    networks:
+      - bank-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-bankuser}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # Нигерикс reverse proxy (сонголттой)
+  nginx:
+    image: nginx:alpine
+    container_name: mongolian-bank-nginx
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./ssl:/etc/nginx/ssl:ro
+    depends_on:
+      - api
+    restart: unless-stopped
+    networks:
+      - bank-network
+    profiles:
+      - production
+
+volumes:
+  postgres_data:
+    driver: local
+
+networks:
+  bank-network:
+    driver: bridge
