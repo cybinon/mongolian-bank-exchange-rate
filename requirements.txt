@@ -1,9 +1,27 @@
-fastapi
-uvicorn
-beautifulsoup4
-requests
-pandas
-dotenv
-html5lib
-selenium
-webdriver_manager
+# Монгол банкны ханшийн API-ийн хамаарлууд
+# Web Framework
+fastapi>=0.104.0
+uvicorn[standard]>=0.24.0
+
+# Өгөгдлийн сан
+sqlalchemy>=2.0.0
+
+# Тохиргоо
+python-dotenv>=1.0.0
+
+# Хуваарь
+schedule>=1.2.0
+
+# HTTP хүсэлт
+requests>=2.31.0
+
+# Web Scraping
+beautifulsoup4>=4.12.0
+playwright>=1.40.0
+lxml>=4.9.0
+
+# Код чанар (хөгжүүлэлтэд)
+black>=23.0.0
+flake8>=6.0.0
+isort>=5.12.0
+pylint>=3.0.0
