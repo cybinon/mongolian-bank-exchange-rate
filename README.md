@@ -1,8 +1,22 @@
 # Монголын банкны валютын ханш API
 
-13 банкны валютын ханшийг цуглуулж, FastAPI үйлчилгээгээр ил гаргана. Суурь технологи: FastAPI, SQLAlchemy, Playwright.
+13 банкны валютын ханшийг цуглуулагч. Үүнд дараах банкууд багтана :
 
-## Түргэн эхлэх (Docker)
+- 🏛️ **arigbank** — Ариг банк  
+- 🏛️ **bogdbank** — Богд банк  
+- 🏛️ **capitronbank** — Капитрон банк  
+- 🏛️ **ckbank** — Чингис хаан банк  
+- 🏛️ **golomt** — Голомт банк  
+- 🏛️ **khanbank** — Хаан банк  
+- 🏛️ **mbank** — М банк  
+- 🏛️ **mongolbank** — Монгол банк  
+- 🏛️ **nibank** — Үндэсний хөрөнгө оруулалтын банк  
+- 🏛️ **statebank** — Төрийн банк  
+- 🏛️ **tdbm** — Худалдаа хөгжлийн банк  
+- 🏛️ **transbank** — Транс банк  
+- 🏛️ **xacbank** — Хас банк
+
+## Хурдан эхлэх (Docker)
 
 ```powershell
 git clone https://github.com/btseee/mongolian-bank-exchange-rate.git
