@@ -3,6 +3,7 @@ Standard crawler template for Mongolian bank exchange rates.
 
 All crawlers should follow this structure for consistency.
 """
+
 import os
 import urllib3
 from abc import ABC, abstractmethod
@@ -22,9 +23,9 @@ logger = get_logger(__name__)
 
 class BaseCrawler(ABC):
     """Base class for all bank crawlers."""
-    
+
     BANK_NAME: str = "BaseBank"  # Override in subclasses
-    
+
     def __init__(self, url: str, date: str):
         """
         Initialize the crawler.
@@ -37,7 +38,7 @@ class BaseCrawler(ABC):
         self.date = date
         self.ssl_verify = config.SSL_VERIFY
         self.timeout = config.REQUEST_TIMEOUT
-    
+
     @abstractmethod
     def crawl(self) -> Dict[str, CurrencyDetail]:
         """
@@ -52,27 +53,27 @@ class BaseCrawler(ABC):
             ValueError: If the response format is invalid
         """
         pass
-    
+
     @abstractmethod
     def _parse_rates(self, data) -> Dict[str, CurrencyDetail]:
         """
         Parse exchange rate data.
-        
+
         Args:
             data: Raw data from API/webpage
-            
+
         Returns:
             Dictionary mapping currency codes to CurrencyDetail objects
         """
         pass
-    
+
     def _parse_float(self, value) -> Optional[float]:
         """
         Parse a value to float, handling various formats.
-        
+
         Args:
             value: Value to parse (string, int, float, or None)
-            
+
         Returns:
             Parsed float value or None if invalid
         """
@@ -81,18 +82,18 @@ class BaseCrawler(ABC):
         try:
             if isinstance(value, (int, float)):
                 return float(value) if value != 0 else None
-            
-            cleaned = str(value).strip().replace(',', '').replace(' ', '').replace('\xa0', '')
-            if not cleaned or cleaned == '-' or cleaned == '0':
+
+            cleaned = str(value).strip().replace(",", "").replace(" ", "").replace("\xa0", "")
+            if not cleaned or cleaned == "-" or cleaned == "0":
                 return None
             return float(cleaned)
         except (ValueError, TypeError, AttributeError):
             return None
-    
+
     def _log_success(self, rates: Dict[str, CurrencyDetail]):
         """Log successful crawl."""
         logger.info(f"Successfully fetched {len(rates)} currencies from {self.BANK_NAME}")
-    
+
     def _log_error(self, error: Exception, context: str = ""):
         """Log error with context."""
         error_msg = f"Error in {self.BANK_NAME}"

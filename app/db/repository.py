@@ -1,6 +1,7 @@
 """
 Repository module for database operations on exchange rates.
 """
+
 from sqlalchemy.orm import Session
 from app.models.currency import CurrencyRate
 from app.models.exchange_rate import ExchangeRate
@@ -21,9 +22,7 @@ def save_rates(db: Session, rate_data: ExchangeRate):
     """
     try:
         db_rate = CurrencyRate(
-            bank_name=rate_data.bank,
-            date=datetime.date.fromisoformat(rate_data.date),
-            rates=rate_data.dict()['rates']
+            bank_name=rate_data.bank, date=datetime.date.fromisoformat(rate_data.date), rates=rate_data.dict()["rates"]
         )
         db.add(db_rate)
         db.commit()
@@ -64,9 +63,14 @@ def get_rates_by_bank(db: Session, bank_name: str, skip: int = 0, limit: int = 1
     Returns:
         List of CurrencyRate objects for the bank
     """
-    return db.query(CurrencyRate).filter(
-        CurrencyRate.bank_name == bank_name
-    ).order_by(CurrencyRate.timestamp.desc()).offset(skip).limit(limit).all()
+    return (
+        db.query(CurrencyRate)
+        .filter(CurrencyRate.bank_name == bank_name)
+        .order_by(CurrencyRate.timestamp.desc())
+        .offset(skip)
+        .limit(limit)
+        .all()
+    )
 
 
 def get_rates_by_date(db: Session, date: datetime.date, skip: int = 0, limit: int = 100) -> List[CurrencyRate]:
@@ -82,16 +86,17 @@ def get_rates_by_date(db: Session, date: datetime.date, skip: int = 0, limit: in
     Returns:
         List of CurrencyRate objects for the date
     """
-    return db.query(CurrencyRate).filter(
-        CurrencyRate.date == date
-    ).order_by(CurrencyRate.timestamp.desc()).offset(skip).limit(limit).all()
+    return (
+        db.query(CurrencyRate)
+        .filter(CurrencyRate.date == date)
+        .order_by(CurrencyRate.timestamp.desc())
+        .offset(skip)
+        .limit(limit)
+        .all()
+    )
 
 
-def get_rates_by_bank_and_date(
-    db: Session, 
-    bank_name: str, 
-    date: datetime.date
-) -> Optional[CurrencyRate]:
+def get_rates_by_bank_and_date(db: Session, bank_name: str, date: datetime.date) -> Optional[CurrencyRate]:
     """
     Get the rate for a specific bank and date.
 
@@ -103,10 +108,12 @@ def get_rates_by_bank_and_date(
     Returns:
         CurrencyRate object or None if not found
     """
-    return db.query(CurrencyRate).filter(
-        CurrencyRate.bank_name == bank_name,
-        CurrencyRate.date == date
-    ).order_by(CurrencyRate.timestamp.desc()).first()
+    return (
+        db.query(CurrencyRate)
+        .filter(CurrencyRate.bank_name == bank_name, CurrencyRate.date == date)
+        .order_by(CurrencyRate.timestamp.desc())
+        .first()
+    )
 
 
 def get_latest_rates(db: Session) -> List[CurrencyRate]:
@@ -121,14 +128,16 @@ def get_latest_rates(db: Session) -> List[CurrencyRate]:
     """
     # Distinct bank names
     banks = db.query(CurrencyRate.bank_name).distinct().all()
-    
+
     latest_rates = []
     for (bank_name,) in banks:
-        latest = db.query(CurrencyRate).filter(
-            CurrencyRate.bank_name == bank_name
-        ).order_by(CurrencyRate.timestamp.desc()).first()
+        latest = (
+            db.query(CurrencyRate)
+            .filter(CurrencyRate.bank_name == bank_name)
+            .order_by(CurrencyRate.timestamp.desc())
+            .first()
+        )
         if latest:
             latest_rates.append(latest)
-    
-    return latest_rates
 
+    return latest_rates

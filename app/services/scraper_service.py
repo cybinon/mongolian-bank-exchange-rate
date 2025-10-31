@@ -1,6 +1,7 @@
 """
 Service module to collect exchange rates from multiple banks.
 """
+
 from app.crawlers.khanbank import KhanBankCrawler
 from app.crawlers.tdbm import TDBMCrawler
 from app.crawlers.golomt import GolomtBankCrawler
@@ -29,7 +30,7 @@ logger = get_logger(__name__)
 
 class ScraperService:
     """Service for scraping exchange rates from multiple banks."""
-    
+
     def __init__(self, date: Optional[str] = None):
         """
         Initialize the scraper service.
@@ -63,18 +64,14 @@ class ScraperService:
                     rates = crawler.crawl()
                     if rates:
                         bank_name = crawler.__class__.__name__.replace("Crawler", "")
-                        exchange_rate_data = ExchangeRate(
-                            date=self.date,
-                            bank=bank_name,
-                            rates=rates
-                        )
+                        exchange_rate_data = ExchangeRate(date=self.date, bank=bank_name, rates=rates)
                         repository.save_rates(db, exchange_rate_data)
                         logger.info(f"Successfully crawled and saved rates from {bank_name}")
                 except Exception as e:
                     logger.error(f"Failed to crawl from {crawler.__class__.__name__}: {e}")
         finally:
             db.close()
-    
+
     def scrape_bank(self, bank_name: str) -> Optional[Dict[str, CurrencyDetail]]:
         """
         Scrape a specific bank without saving to the database.
@@ -86,7 +83,7 @@ class ScraperService:
             Dict of currency rates, or None if bank not found
         """
         bank_name_lower = bank_name.lower()
-        
+
         crawler_map = {
             "khanbank": lambda: KhanBankCrawler(config.KHANBANK_URI, self.date),
             "golomt": lambda: GolomtBankCrawler(config.GOLOMT_URI, self.date),
@@ -103,12 +100,12 @@ class ScraperService:
             "mbank": lambda: MBankCrawler(config.MBANK_URI, self.date),
             "ckbank": lambda: CKBankCrawler(config.CKBANK_URI, self.date),
         }
-        
+
         crawler_factory = crawler_map.get(bank_name_lower)
         if not crawler_factory:
             logger.error(f"Bank not found: {bank_name}")
             return None
-        
+
         try:
             crawler = crawler_factory()
             rates = crawler.crawl()
@@ -117,6 +114,3 @@ class ScraperService:
         except Exception as e:
             logger.error(f"Failed to scrape from {bank_name}: {e}")
             return None
-
-
-

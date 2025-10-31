@@ -2,6 +2,7 @@
 Configuration module for crawlers.
 All values are read from environment variables.
 """
+
 import os
 from typing import Optional
 from dotenv import load_dotenv
@@ -11,20 +12,20 @@ load_dotenv()
 
 class CrawlerConfig:
     """Configuration holder for the crawler service."""
-    
+
     # Database configuration
     DATABASE_URL: str = os.getenv("DATABASE_URL", "sqlite:///./exchange_rates.db")
-    
+
     # Schedule configuration
     CRON_SCHEDULE: str = os.getenv("CRON_SCHEDULE", "0 1 * * *")
-    
+
     # SSL verification
-    SSL_VERIFY: bool = os.getenv("SSL_VERIFY", "False").lower() in ('true', '1', 't', 'yes')
-    
+    SSL_VERIFY: bool = os.getenv("SSL_VERIFY", "False").lower() in ("true", "1", "t", "yes")
+
     # Timeouts
     REQUEST_TIMEOUT: int = int(os.getenv("REQUEST_TIMEOUT", "30"))
     PLAYWRIGHT_TIMEOUT: int = int(os.getenv("PLAYWRIGHT_TIMEOUT", "60000"))  # миллисекунд
-    
+
     # Bank API/website URIs
     KHANBANK_URI: str = os.getenv("KHANBANK_URI", "https://www.khanbank.com/api/back/rates")
     TDBM_URI: str = os.getenv("TDBM_URI", "https://www.tdbm.mn/en/exchange-rates")
@@ -35,21 +36,17 @@ class CrawlerConfig:
     STATEBANK_URI: str = os.getenv("STATEBANK_URI", "https://www.statebank.mn/back/api/fetchrate")
     MONGOLBANK_URI: str = os.getenv("MONGOLBANK_URI", "https://www.mongolbank.mn/en/currency-rate-movement/data")
     CAPITRONBANK_URI: str = os.getenv(
-        "CAPITRONBANK_URI",
-        "https://www.capitronbank.mn/admin/en/wp-json/bank/rates/capitronbank"
+        "CAPITRONBANK_URI", "https://www.capitronbank.mn/admin/en/wp-json/bank/rates/capitronbank"
     )
     CKBANK_URI: str = os.getenv("CKBANK_URI", "https://www.ckbank.mn/currency-rates")
     TRANSBANK_URI: str = os.getenv("TRANSBANK_URI", "https://transbank.mn/en/exchange")
     NIBANK_URI: str = os.getenv("NIBANK_URI", "https://www.nibank.mn/en/rate")
     MBANK_URI: str = os.getenv("MBANK_URI", "https://m-bank.mn/")
-    
+
     # Arig Bank special settings
     ARIGBANK_BEARER_TOKEN: Optional[str] = os.getenv("ARIGBANK_BEARER_TOKEN")
-    ARIGBANK_API_URL: str = os.getenv(
-        "ARIGBANK_API_URL",
-        "https://www.arigbank.mn/exchange/getRate"
-    )
-    
+    ARIGBANK_API_URL: str = os.getenv("ARIGBANK_API_URL", "https://www.arigbank.mn/exchange/getRate")
+
     @classmethod
     def get_bank_uri(cls, bank_name: str) -> Optional[str]:
         """Get URI by bank name."""

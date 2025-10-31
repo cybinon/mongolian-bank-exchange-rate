@@ -1,14 +1,17 @@
 """
 SQLAlchemy model for exchange rates table.
 """
+
 from sqlalchemy import Column, Integer, String, JSON, DateTime, Date
 from sqlalchemy.ext.declarative import declarative_base
 import datetime
 
 Base = declarative_base()
 
+
 class CurrencyRate(Base):
     """Database model for currency exchange rates."""
+
     __tablename__ = "currency_rates"
 
     id = Column(Integer, primary_key=True, index=True)
@@ -16,4 +19,3 @@ class CurrencyRate(Base):
     date = Column(Date, index=True)
     rates = Column(JSON)
     timestamp = Column(DateTime, default=datetime.datetime.utcnow)
-
