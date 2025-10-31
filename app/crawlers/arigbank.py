@@ -1,5 +1,5 @@
 """
-Ариг банкны валютын ханш цуглуулагч.
+Crawler for Arig Bank exchange rates.
 """
 import os
 import urllib3
@@ -19,17 +19,17 @@ urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 logger = get_logger(__name__)
 
 class ArigBankCrawler:
-    """Ариг банкны API-аас валютын ханш татах цуглуулагч."""
+    """Crawler to fetch exchange rates from Arig Bank API."""
     
     BANK_NAME = "ArigBank"
     
     def __init__(self, url: str, date: str):
         """
-        Ариг банкны цуглуулагчийг эхлүүлэх.
-        
+        Initialize Arig Bank crawler.
+
         Args:
-            url: Банкны вэбсайтын URL
-            date: Огноо YYYY-MM-DD форматаар
+            url: Bank website/API URL
+            date: Date in YYYY-MM-DD format
         """
         self.url = url
         self.date = date
@@ -40,10 +40,10 @@ class ArigBankCrawler:
     
     def crawl(self) -> Dict[str, CurrencyDetail]:
         """
-        Ариг банкны API-аас валютын ханш татах.
-        
+        Fetch exchange rates from Arig Bank API.
+
         Returns:
-            Валютын код -> CurrencyDetail объектын толь
+            Mapping of currency code -> CurrencyDetail
         """
         logger.info(f"Fetching rates from {self.BANK_NAME}: {self.API_URL}")
         

@@ -1,17 +1,17 @@
 """
-Системийн бүртгэл (logging) тохиргооны модуль.
+Simple logging configuration module.
 """
 import logging
 
 def get_logger(name):
     """
-    Нэртэй бүртгэгч (logger) үүсгэж буцаах.
-    
+    Create and return a named logger.
+
     Args:
-        name: Бүртгэгчийн нэр (ихэвчлэн модулийн нэр)
-        
+        name: Logger name (usually module name)
+
     Returns:
-        Тохируулагдсан logger объект
+        Logger instance
     """
     logger = logging.getLogger(name)
     logger.setLevel(logging.INFO)

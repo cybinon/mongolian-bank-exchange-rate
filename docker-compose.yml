@@ -1,21 +1,15 @@
-# Монгол банкны ханшийн API - Docker Compose тохиргоо
-version: '3.8'
-
+# Mongolian bank exchange-rate API - Docker Compose config
 services:
-  # API үйлчилгээ
+  # API service
   api:
     build:
       context: .
       dockerfile: Dockerfile
     container_name: mongolian-bank-api
+    env_file:
+      - .env
     ports:
       - "8000:8000"
-    environment:
-      - DATABASE_URL=${DATABASE_URL:-postgresql://bankuser:bankpass123@db:5432/exchange_rates}
-      - CRON_SCHEDULE=${CRON_SCHEDULE:-0 1 * * *}
-      - SSL_VERIFY=${SSL_VERIFY:-False}
-      - REQUEST_TIMEOUT=${REQUEST_TIMEOUT:-30}
-      - PLAYWRIGHT_TIMEOUT=${PLAYWRIGHT_TIMEOUT:-60000}
     depends_on:
       db:
         condition: service_healthy
@@ -31,19 +25,15 @@ services:
       retries: 3
       start_period: 40s
 
-  # Хуваарийн цуглуулагч
+  # Scheduled scraper
   cron:
     build:
       context: .
       dockerfile: Dockerfile
     container_name: mongolian-bank-cron
     command: python cron.py
-    environment:
-      - DATABASE_URL=${DATABASE_URL:-postgresql://bankuser:bankpass123@db:5432/exchange_rates}
-      - CRON_SCHEDULE=${CRON_SCHEDULE:-0 1 * * *}
-      - SSL_VERIFY=${SSL_VERIFY:-False}
-      - REQUEST_TIMEOUT=${REQUEST_TIMEOUT:-30}
-      - PLAYWRIGHT_TIMEOUT=${PLAYWRIGHT_TIMEOUT:-60000}
+    env_file:
+      - .env
     depends_on:
       db:
         condition: service_healthy
@@ -53,7 +43,7 @@ services:
     networks:
       - bank-network
 
-  # PostgreSQL өгөгдлийн сан
+  # PostgreSQL database
   db:
     image: postgres:15-alpine
     container_name: mongolian-bank-db
@@ -74,7 +64,7 @@ services:
       timeout: 5s
       retries: 5
 
-  # Нигерикс reverse proxy (сонголттой)
+  # NGINX reverse proxy (optional)
   nginx:
     image: nginx:alpine
     container_name: mongolian-bank-nginx

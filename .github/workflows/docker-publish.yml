@@ -19,42 +19,9 @@ env:
   IMAGE_NAME: ${{ github.repository }}
 
 jobs:
-  # Код чанарын шалгалт
-  test:
-    name: Test and Lint
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout кодыг татах
-        uses: actions/checkout@v4
-
-      - name: Python тохируулах
-        uses: actions/setup-python@v5
-        with:
-          python-version: '3.11'
-          cache: 'pip'
-
-      - name: Хамаарлууд суулгах
-        run: |
-          python -m pip install --upgrade pip
-          pip install -r requirements.txt
-          pip install pytest flake8 black isort
-
-      - name: Код форматлах шалгах (black)
-        run: black --check app/ || true
-
-      - name: Import эрэмбэ шалгах (isort)
-        run: isort --check-only app/ || true
-
-      - name: Lint шалгах (flake8)
-        run: flake8 app/ --max-line-length=120 --extend-ignore=E203,W503 || true
-
-      - name: Синтакс шалгах
-        run: python -m py_compile app/**/*.py
-
-  # Docker image бүтээх болон GitHub Container Registry руу push хийх
+  # Build Docker image and push to GitHub Container Registry
   build-and-push:
     name: Build and Push Docker Image
-    needs: test
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -62,20 +29,21 @@ jobs:
       id-token: write
 
     steps:
-      - name: Checkout кодыг татах
+      - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Docker Buildx тохируулах
+      - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
-      - name: GitHub Container Registry-д нэвтрэх
+      - name: Login to GitHub Container Registry
+        if: github.event_name != 'pull_request'
         uses: docker/login-action@v3
         with:
           registry: ${{ env.REGISTRY }}
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Docker metadata задлах
+      - name: Extract Docker metadata
         id: meta
         uses: docker/metadata-action@v5
         with:
@@ -91,21 +59,21 @@ jobs:
           flavor: |
             latest=auto
 
-      - name: Docker image бүтээж push хийх
+      - name: Build Docker image (do not push on PR)
         uses: docker/build-push-action@v5
         with:
           context: .
-          push: true
+          push: ${{ github.event_name != 'pull_request' }}
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
           platforms: linux/amd64,linux/arm64
 
-      - name: Image digest хэвлэх
+      - name: Print image digest
         run: echo ${{ steps.meta.outputs.digest }}
 
-  # GitHub Release үүсгэх (tag push хийхэд)
+  # Create GitHub Release (on tag push)
   release:
     name: Create GitHub Release
     needs: build-and-push
@@ -115,18 +83,18 @@ jobs:
       contents: write
 
     steps:
-      - name: Checkout кодыг татах
+      - name: Checkout repository
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
 
-      - name: Өмнөх tag авах
+      - name: Get previous tag
         id: previoustag
         run: |
           PREV_TAG=$(git tag --sort=-v:refname | sed -n '2p')
           echo "tag=$PREV_TAG" >> $GITHUB_OUTPUT
 
-      - name: Changelog үүсгэх
+      - name: Generate changelog
         id: changelog
         run: |
           if [ -z "${{ steps.previoustag.outputs.tag }}" ]; then
@@ -138,7 +106,7 @@ jobs:
           echo "$CHANGELOG" >> $GITHUB_OUTPUT
           echo "EOF" >> $GITHUB_OUTPUT
 
-      - name: GitHub Release үүсгэх
+      - name: Create GitHub Release
         uses: actions/create-release@v1
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -154,25 +122,25 @@ jobs:
             docker pull ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest
             ```
 
-            ### 🚀 Ашиглах заавар
+            ### 🚀 Quick Start
             ```bash
-            # Docker-оор ажиллуулах
+            # Run with Docker
             docker run -d -p 8000:8000 \
               -e DATABASE_URL=sqlite:///./exchange_rates.db \
               ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ github.ref_name }}
             ```
 
-            ### 📝 Өөрчлөлтүүд
+            ### 📝 Changes
             ${{ steps.changelog.outputs.changelog }}
 
-            ### 🔗 Холбоосууд
+            ### 🔗 Links
             - [Documentation](https://github.com/${{ github.repository }})
             - [Docker Hub](${{ env.REGISTRY }}/${{ env.IMAGE_NAME }})
             - [Issues](https://github.com/${{ github.repository }}/issues)
           draft: false
           prerelease: false
 
-  # Аюулгүй байдлын шалгалт
+  # Security scan
   security-scan:
     name: Security Scan
     needs: build-and-push
@@ -183,17 +151,17 @@ jobs:
       packages: read
 
     steps:
-      - name: Checkout кодыг татах
+      - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: GitHub Container Registry-д нэвтрэх
+      - name: Login to GitHub Container Registry
         uses: docker/login-action@v3
         with:
           registry: ${{ env.REGISTRY }}
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Сканнердах image tag тодорхойлох
+      - name: Determine image tag to scan
         id: scan-tag
         run: |
           if [[ "${{ github.ref }}" == refs/tags/* ]]; then
@@ -204,7 +172,7 @@ jobs:
             echo "tag=${GITHUB_REF#refs/heads/}" >> $GITHUB_OUTPUT
           fi
 
-      - name: Trivy-ээр Docker image сканнердах
+      - name: Scan Docker image with Trivy
         uses: aquasecurity/trivy-action@master
         with:
           image-ref: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ steps.scan-tag.outputs.tag }}
@@ -212,7 +180,7 @@ jobs:
           output: 'trivy-results.sarif'
         continue-on-error: true
 
-      - name: GitHub Security tab руу оруулах
+      - name: Upload results to GitHub Security tab
         uses: github/codeql-action/upload-sarif@v3
         if: always() && hashFiles('trivy-results.sarif') != ''
         with:

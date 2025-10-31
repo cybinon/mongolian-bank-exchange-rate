@@ -1,7 +1,7 @@
 """
-Монгол банкны валютын ханшийн стандарт цуглуулагчийн загвар.
+Standard crawler template for Mongolian bank exchange rates.
 
-Бүх цуглуулагчид энэ бүтцийг дагаж тогтвортой байх ёстой.
+All crawlers should follow this structure for consistency.
 """
 import os
 import urllib3
@@ -21,17 +21,17 @@ logger = get_logger(__name__)
 
 
 class BaseCrawler(ABC):
-    """Бүх банкны цуглуулагчдын үндсэн анги."""
+    """Base class for all bank crawlers."""
     
-    BANK_NAME: str = "BaseBank"  # Дэд ангид давхарлаж өөрчлөх
+    BANK_NAME: str = "BaseBank"  # Override in subclasses
     
     def __init__(self, url: str, date: str):
         """
-        Цуглуулагчийг эхлүүлэх.
-        
+        Initialize the crawler.
+
         Args:
-            url: Банкны вэбсайтын URL
-            date: Огноо YYYY-MM-DD форматаар
+            url: Bank website/API URL
+            date: Date in YYYY-MM-DD format
         """
         self.url = url
         self.date = date
@@ -41,15 +41,15 @@ class BaseCrawler(ABC):
     @abstractmethod
     def crawl(self) -> Dict[str, CurrencyDetail]:
         """
-        Банкнаас валютын ханшийг цуглуулах.
-        
+        Collect exchange rates from the bank.
+
         Returns:
-            Валютын код (жижиг үсэг) -> CurrencyDetail объектын толь
-            
+            Mapping: currency code (lowercase) -> CurrencyDetail
+
         Raises:
-            TimeoutError: Хүсэлт хугацаа хэтэрвэл
-            RequestException: If request fails
-            ValueError: If response format is invalid
+            TimeoutError: If the request times out
+            RequestException: If the request fails
+            ValueError: If the response format is invalid
         """
         pass
     

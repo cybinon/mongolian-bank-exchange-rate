@@ -1,52 +1,39 @@
-# Монгол банкны ханшийн API - Docker хувилбар
+# Mongolian bank exchange-rate API - Docker image
 FROM python:3.11-slim
 
-# Ажлын хавтас тохируулах
+# Set working directory
 WORKDIR /app
 
-# Систем хамаарлуудыг суулгах (Playwright-д шаардлагатай)
-RUN apt-get update && apt-get install -y \
-    wget \
-    gnupg \
-    ca-certificates \
-    fonts-liberation \
-    libasound2 \
-    libatk-bridge2.0-0 \
-    libatk1.0-0 \
-    libatspi2.0-0 \
-    libcups2 \
-    libdbus-1-3 \
-    libdrm2 \
-    libgbm1 \
-    libgtk-3-0 \
-    libnspr4 \
-    libnss3 \
-    libwayland-client0 \
-    libxcomposite1 \
-    libxdamage1 \
-    libxfixes3 \
-    libxkbcommon0 \
-    libxrandr2 \
-    xdg-utils \
-    && rm -rf /var/lib/apt/lists/*
+# Base environment flags
+ENV PIP_NO_CACHE_DIR=1 \
+    PIP_DISABLE_PIP_VERSION_CHECK=1 \
+    PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONUNBUFFERED=1 \
+    PLAYWRIGHT_BROWSERS_PATH=/ms-playwright
 
-# Python хамаарлуудыг суулгах
+# Install Python dependencies
 COPY requirements.txt .
-RUN pip install --no-cache-dir -r requirements.txt
+RUN python -m pip install --upgrade pip \
+    && pip install --no-cache-dir -r requirements.txt
 
-# Playwright хөтчүүдийг суулгах
-RUN playwright install chromium
-RUN playwright install-deps chromium
+# Install Playwright and required system dependencies in one step
+RUN playwright install --with-deps chromium
 
-# Апликейшны кодыг хуулах
+# Copy application code
 COPY . .
 
-# Портыг задлах
+# Run as non-root user
+RUN adduser --disabled-password --gecos "" appuser \
+    && mkdir -p /app/logs \
+    && chown -R appuser:appuser /app /ms-playwright
+USER appuser
+
+# Expose port
 EXPOSE 8000
 
-# Эрүүл мэндийн шалгалт
+# Healthcheck
 HEALTHCHECK --interval=30s --timeout=10s --start-period=40s --retries=3 \
     CMD python -c "import requests; requests.get('http://localhost:8000/', timeout=5)" || exit 1
 
-# Үндсэн команд
+# Default command
 CMD ["uvicorn", "app.api.main:app", "--host", "0.0.0.0", "--port", "8000"]

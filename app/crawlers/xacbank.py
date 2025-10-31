@@ -1,5 +1,5 @@
 """
-Хас банкны валютын ханш цуглуулагч.
+Crawler for XacBank exchange rates.
 """
 import requests
 import os
@@ -18,18 +18,18 @@ from app.utils.logger import get_logger
 logger = get_logger(__name__)
 
 class XacBankCrawler:
-    """Хас банкны API-аас валютын ханш татах цуглуулагч."""
+    """Crawler to fetch exchange rates from XacBank API."""
     BANK_NAME = "XacBank"
     REQUEST_TIMEOUT = 30
     BASE_API_URL = "https://xacbank.mn/api/currencies"
     
     def __init__(self, url: str, date: str):
         """
-        Цуглуулагчийг эхлүүлэх.
-        
+        Initialize the crawler.
+
         Args:
-            url: Банкны вэбсайтын URL
-            date: Огноо YYYY-MM-DD форматаар
+            url: Bank website/API URL
+            date: Date in YYYY-MM-DD format
         """
         self.url = url
         self.date = date
@@ -37,10 +37,10 @@ class XacBankCrawler:
 
     def crawl(self) -> Dict[str, CurrencyDetail]:
         """
-        Хас банкны API-аас валютын ханш татах.
-        
+        Fetch exchange rates from XacBank API.
+
         Returns:
-            Валютын код -> CurrencyDetail объектын толь
+            Mapping of currency code -> CurrencyDetail
         """
         logger.info(f"Fetching rates from {self.BANK_NAME}: {self.BASE_API_URL}")
         
@@ -61,7 +61,7 @@ class XacBankCrawler:
             data = response.json()
             
             if not data.get('docs') or len(data['docs']) == 0:
-                logger.info(f"{self.BANK_NAME} has no data for {target_date.strftime('%Y-%m-%d')}, trying yesterday")
+                logger.info(f"{self.BANK_NAME} has no data for {target_date.strftime('%Y-%m-%d')}, trying previous day")
                 yesterday = target_date - timedelta(days=1)
                 api_url = self._build_api_url(yesterday)
                 

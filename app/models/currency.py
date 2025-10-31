@@ -1,5 +1,5 @@
 """
-Валютын ханшийн өгөгдлийн сангийн SQLAlchemy загвар.
+SQLAlchemy model for exchange rates table.
 """
 from sqlalchemy import Column, Integer, String, JSON, DateTime, Date
 from sqlalchemy.ext.declarative import declarative_base
@@ -8,7 +8,7 @@ import datetime
 Base = declarative_base()
 
 class CurrencyRate(Base):
-    """Өгөгдлийн сангийн валютын ханшийн хүснэгтийн загвар."""
+    """Database model for currency exchange rates."""
     __tablename__ = "currency_rates"
 
     id = Column(Integer, primary_key=True, index=True)

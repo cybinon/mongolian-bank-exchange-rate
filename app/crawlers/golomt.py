@@ -1,5 +1,5 @@
 """
-Голомт банкны валютын ханш цуглуулагч.
+Crawler for Golomt Bank exchange rates.
 """
 import requests
 import datetime
@@ -18,17 +18,17 @@ from app.utils.logger import get_logger
 logger = get_logger(__name__)
 
 class GolomtBankCrawler:
-    """Голомт банкны API-аас валютын ханш татах цуглуулагч."""
+    """Crawler to fetch exchange rates from Golomt Bank API."""
     BANK_NAME = "GolomtBank"
-    REQUEST_TIMEOUT = 30  # секунд
+    REQUEST_TIMEOUT = 30  # seconds
     
     def __init__(self, url: str, date: str):
         """
-        Цуглуулагчийг эхлүүлэх.
-        
+        Initialize the crawler.
+
         Args:
-            url: Банкны API-ийн URL
-            date: Огноо YYYY-MM-DD форматаар
+            url: Bank API URL
+            date: Date in YYYY-MM-DD format
         """
         self.url = url
         self.date = date
@@ -36,10 +36,10 @@ class GolomtBankCrawler:
 
     def crawl(self) -> Dict[str, CurrencyDetail]:
         """
-        Голомт банкны API-аас валютын ханш татах.
-        
+        Fetch exchange rates from Golomt Bank API.
+
         Returns:
-            Валютын код -> CurrencyDetail объектын толь
+            Mapping of currency code -> CurrencyDetail
         """
         date_formatted = self.date.replace("-", "")
         endpoint = f"{self.url}?date={date_formatted}"

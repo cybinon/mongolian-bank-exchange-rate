@@ -1,26 +1,26 @@
-# Монгол банкны ханшийн API-ийн хамаарлууд
+# Dependencies for the Mongolian bank exchange-rate API
 # Web Framework
 fastapi>=0.104.0
 uvicorn[standard]>=0.24.0
 
-# Өгөгдлийн сан
+# Database
 sqlalchemy>=2.0.0
 
-# Тохиргоо
+# Configuration
 python-dotenv>=1.0.0
 
-# Хуваарь
+# Scheduling
 schedule>=1.2.0
 
-# HTTP хүсэлт
+# HTTP requests
 requests>=2.31.0
 
-# Web Scraping
+# Web scraping
 beautifulsoup4>=4.12.0
 playwright>=1.40.0
 lxml>=4.9.0
 
-# Код чанар (хөгжүүлэлтэд)
+# Code quality (dev only)
 black>=23.0.0
 flake8>=6.0.0
 isort>=5.12.0

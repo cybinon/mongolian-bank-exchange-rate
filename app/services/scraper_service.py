@@ -1,5 +1,5 @@
 """
-Олон банкнаас мэдээлэл цуглуулах үйлчилгээний модуль.
+Service module to collect exchange rates from multiple banks.
 """
 from app.crawlers.khanbank import KhanBankCrawler
 from app.crawlers.tdbm import TDBMCrawler
@@ -28,14 +28,14 @@ logger = get_logger(__name__)
 
 
 class ScraperService:
-    """Олон банкнаас валютын ханш цуглуулах үйлчилгээний анги."""
+    """Service for scraping exchange rates from multiple banks."""
     
     def __init__(self, date: Optional[str] = None):
         """
-        Цуглуулагч үйлчилгээг эхлүүлэх.
-        
+        Initialize the scraper service.
+
         Args:
-            date: Огноо ISO форматаар (YYYY-MM-DD). Өнөөдөр байна.
+            date: Date in ISO format (YYYY-MM-DD). Defaults to today.
         """
         self.date = date or datetime.date.today().isoformat()
         self.crawlers = [
@@ -55,7 +55,7 @@ class ScraperService:
         ]
 
     def run_crawlers(self):
-        """Бүх цуглуулагчдыг ажиллуулж үр дүнг өгөгдлийн санд хадгалах."""
+        """Run all crawlers and save results to the database."""
         db = SessionLocal()
         try:
             for crawler in self.crawlers:
@@ -77,13 +77,13 @@ class ScraperService:
     
     def scrape_bank(self, bank_name: str) -> Optional[Dict[str, CurrencyDetail]]:
         """
-        Тодорхой банкнаас ханшийг татах, өгөгдлийн санд хадгалахгүй.
-        
+        Scrape a specific bank without saving to the database.
+
         Args:
-            bank_name: Татах банкны нэр (том жижиг үсэг ялгахгүй)
-            
+            bank_name: Bank name (case-insensitive)
+
         Returns:
-            Валютын ханшийн толь эсвэл банк олдоогүй бол None
+            Dict of currency rates, or None if bank not found
         """
         bank_name_lower = bank_name.lower()
         

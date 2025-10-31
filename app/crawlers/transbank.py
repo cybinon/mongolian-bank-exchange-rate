@@ -1,5 +1,5 @@
 """
-Транс банкны валютын ханш цуглуулагч (Playwright ашиглан).
+Crawler for TransBank exchange rates (uses Playwright).
 """
 import os
 import json
@@ -18,17 +18,17 @@ from app.utils.logger import get_logger
 logger = get_logger(__name__)
 
 class TransBankCrawler:
-    """Транс банкны вэбсайтаас валютын ханш татах цуглуулагч."""
+    """Crawler to fetch exchange rates from TransBank website."""
     BANK_NAME = "TransBank"
     REQUEST_TIMEOUT = 60000
     
     def __init__(self, url: str, date: str):
         """
-        Цуглуулагчийг эхлүүлэх.
-        
+        Initialize the crawler.
+
         Args:
-            url: Банкны вэбсайтын URL
-            date: Огноо YYYY-MM-DD форматаар
+            url: Bank website URL
+            date: Date in YYYY-MM-DD format
         """
         self.url = url
         self.date = date
@@ -36,10 +36,10 @@ class TransBankCrawler:
 
     def crawl(self) -> Dict[str, CurrencyDetail]:
         """
-        Транс банкны вэбсайтаас валютын ханш татах.
-        
+        Fetch exchange rates from the TransBank website.
+
         Returns:
-            Валютын код -> CurrencyDetail объектын толь
+            Mapping of currency code -> CurrencyDetail
         """
         logger.info(f"Fetching rates from {self.BANK_NAME}: {self.url}")
         

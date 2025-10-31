@@ -1,5 +1,5 @@
 """
-Монгол банкны валютын ханш цуглуулагч.
+Crawler for MongolBank exchange rates.
 """
 import requests
 import os
@@ -16,18 +16,18 @@ from app.utils.logger import get_logger
 logger = get_logger(__name__)
 
 class MongolBankCrawler:
-    """Монгол банкны API-аас валютын ханш татах цуглуулагч."""
+    """Crawler to fetch exchange rates from MongolBank API."""
     BANK_NAME = "MongolBank"
     REQUEST_TIMEOUT = 30
     API_URL = "https://www.mongolbank.mn/en/currency-rate-movement/data"
     
     def __init__(self, url: str, date: str):
         """
-        Цуглуулагчийг эхлүүлэх.
-        
+        Initialize the crawler.
+
         Args:
-            url: Банкны вэбсайтын URL
-            date: Огноо YYYY-MM-DD форматаар
+            url: Bank website/API URL
+            date: Date in YYYY-MM-DD format
         """
         self.url = url
         self.date = date
@@ -35,10 +35,10 @@ class MongolBankCrawler:
 
     def crawl(self) -> Dict[str, CurrencyDetail]:
         """
-        Монгол банкны API-аас валютын ханш татах.
-        
+        Fetch exchange rates from MongolBank API.
+
         Returns:
-            Валютын код -> CurrencyDetail объектын толь
+            Mapping of currency code -> CurrencyDetail
         """
         logger.info(f"Fetching rates from {self.BANK_NAME}: {self.API_URL}")
         

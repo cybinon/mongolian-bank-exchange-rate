@@ -1,5 +1,5 @@
 """
-Чингис хаан банкны валютын ханш цуглуулагч (Playwright ашиглан).
+Exchange rate crawler for Chinggis Khaan Bank (using Playwright).
 """
 import os
 from typing import Dict
@@ -16,17 +16,17 @@ from app.utils.logger import get_logger
 logger = get_logger(__name__)
 
 class CKBankCrawler:
-    """Чингис хаан банкны вэбсайтаас валютын ханш татах цуглуулагч."""
+    """Crawler for fetching exchange rates from Chinggis Khaan Bank's website."""
     BANK_NAME = "CKBank"
     REQUEST_TIMEOUT = 60000
     
     def __init__(self, url: str, date: str):
         """
-        Цуглуулагчийг эхлүүлэх.
+        Initialize the crawler.
         
         Args:
-            url: Банкны вэбсайтын URL
-            date: Огноо YYYY-MM-DD форматаар
+            url: Bank website URL
+            date: Date in YYYY-MM-DD format
         """
         self.url = url
         self.date = date
@@ -34,10 +34,10 @@ class CKBankCrawler:
 
     def crawl(self) -> Dict[str, CurrencyDetail]:
         """
-        Чингис хаан банкны вэбсайтаас валютын ханш татах.
+        Fetch exchange rates from Chinggis Khaan Bank.
         
         Returns:
-            Валютын код -> CurrencyDetail объектын толь
+            Dict mapping currency code -> CurrencyDetail object
         """
         logger.info(f"Fetching rates from {self.BANK_NAME}: {self.url}")
         

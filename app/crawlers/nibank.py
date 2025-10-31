@@ -1,5 +1,5 @@
 """
-Нийслэлийн Иргэдийн Банкны валютын ханш цуглуулагч (Playwright ашиглан).
+Exchange rate crawler for NIBank (using Playwright).
 """
 import os
 import re
@@ -17,17 +17,17 @@ from app.utils.logger import get_logger
 logger = get_logger(__name__)
 
 class NIBankCrawler:
-    """НИБанкны вэбсайтаас валютын ханш татах цуглуулагч."""
+    """Crawler for fetching exchange rates from NIBank's website."""
     BANK_NAME = "NIBank"
     REQUEST_TIMEOUT = 60000
     
     def __init__(self, url: str, date: str):
         """
-        Цуглуулагчийг эхлүүлэх.
+        Initialize the crawler.
         
         Args:
-            url: Банкны вэбсайтын URL
-            date: Огноо YYYY-MM-DD форматаар
+            url: Bank website URL
+            date: Date in YYYY-MM-DD format
         """
         self.url = url
         self.date = date
@@ -35,10 +35,10 @@ class NIBankCrawler:
 
     def crawl(self) -> Dict[str, CurrencyDetail]:
         """
-        НИБанкны вэбсайтаас валютын ханш татах.
+        Fetch exchange rates from NIBank.
         
         Returns:
-            Валютын код -> CurrencyDetail объектын толь
+            Dict mapping currency code -> CurrencyDetail object
         """
         logger.info(f"Fetching rates from {self.BANK_NAME}: {self.url}")
         

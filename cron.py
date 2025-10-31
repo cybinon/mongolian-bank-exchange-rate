@@ -1,10 +1,11 @@
 """
-Бүх банкнаас валютын ханшийг тогтмол цуглуулах хуваарийн програм.
-Хуваарь нь CRON_SCHEDULE орчны хувьсагчаар тохируулагддаг.
+Scheduler program to collect exchange rates from all banks on a schedule.
+The schedule is controlled by the CRON_SCHEDULE environment variable.
 """
 import schedule
 import time
 from app.services.scraper_service import ScraperService
+from app.db.database import init_db
 from app.utils.logger import get_logger
 from app.config import config
 from datetime import datetime
@@ -13,7 +14,7 @@ logger = get_logger(__name__)
 
 
 def job():
-    """Цуглуулах ажлыг гүйцэтгэх."""
+    """Run the scraping job once."""
     logger.info("=" * 60)
     logger.info(f"Starting scheduled crawl job at {datetime.now()}")
     logger.info("=" * 60)
@@ -30,16 +31,16 @@ def job():
 
 def parse_cron_schedule(cron_string: str) -> dict:
     """
-    Cron хуваарийн мөрийг хуваарийн параметрүүд рүү задлах.
-    
-    Формат: минут цаг өдөр сар долоо хоногийн өдөр
-    Жишээ: "0 1 * * *" гэдэг нь өдөр бүр 1:00 цагт гэсэн үг
-    
+    Parse a cron schedule string into simple schedule parameters.
+
+    Format: minute hour day month day_of_week
+    Example: "0 1 * * *" means every day at 01:00.
+
     Args:
-        cron_string: Cron хуваарийн мөр
-        
+        cron_string: Cron expression string
+
     Returns:
-        Хуваарийн параметрүүдтэй толь
+        Dict with schedule parameters
     """
     parts = cron_string.split()
     if len(parts) != 5:
@@ -48,9 +49,9 @@ def parse_cron_schedule(cron_string: str) -> dict:
     
     minute, hour, day, month, day_of_week = parts
     
-    # Энгийн cron задлагч - үндсэн тохиолдлуудыг зохицуулна
+    # Simple cron parser — handles common daily schedule
     if day == "*" and month == "*" and day_of_week == "*":
-        # Өдөр бүрийн хуваарь
+        # Daily schedule
         time_str = f"{hour.zfill(2)}:{minute.zfill(2)}"
         return {"type": "daily", "time": time_str}
     else:
@@ -60,31 +61,37 @@ def parse_cron_schedule(cron_string: str) -> dict:
 
 
 def main():
-    """Cron хуваарлагчийг эхлүүлэх үндсэн функц."""
+    """Entry point to start the scheduler."""
     logger.info("=" * 60)
     logger.info("Starting Mongolian Bank Exchange Rate Crawler Scheduler")
     logger.info("=" * 60)
     logger.info(f"Cron Schedule: {config.CRON_SCHEDULE}")
+    logger.info("Initializing database (creating tables if missing)...")
+    try:
+        init_db()
+        logger.info("Database initialized.")
+    except Exception as e:
+        logger.error(f"Database initialization failed: {e}", exc_info=True)
     
-    # Хуваарийг задлаж тохируулах
+    # Parse and apply schedule
     schedule_params = parse_cron_schedule(config.CRON_SCHEDULE)
     
     if schedule_params["type"] == "daily":
         schedule.every().day.at(schedule_params["time"]).do(job)
-        logger.info(f"Scheduled to run daily at {schedule_params['time']}")
+    logger.info(f"Scheduled to run daily at {schedule_params['time']}")
     
     logger.info("Scheduler started. Press Ctrl+C to stop.")
     logger.info("=" * 60)
     
-    # Эхлэхэд шууд ажиллуулах (сонголттой - хэрэггүй бол коммент хий)
+    # Run once on startup (optional)
     logger.info("Running initial crawl on startup...")
     job()
     
-    # Хуваарлагчийг ажиллуулсан байлгах
+    # Keep the scheduler running
     try:
         while True:
             schedule.run_pending()
-            time.sleep(60)  # Минут бүр шалгах
+            time.sleep(60)  # Check every minute
     except KeyboardInterrupt:
         logger.info("Scheduler stopped by user")
     except Exception as e:

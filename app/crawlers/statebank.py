@@ -1,5 +1,5 @@
 """
-Төрийн банкны валютын ханш цуглуулагч.
+Crawler for State Bank exchange rates.
 """
 import requests
 import os
@@ -16,17 +16,17 @@ from app.utils.logger import get_logger
 logger = get_logger(__name__)
 
 class StateBankCrawler:
-    """Төрийн банкны API-аас валютын ханш татах цуглуулагч."""
+    """Crawler to fetch exchange rates from State Bank API."""
     BANK_NAME = "StateBank"
     REQUEST_TIMEOUT = 30
     
     def __init__(self, url: str, date: str):
         """
-        Цуглуулагчийг эхлүүлэх.
-        
+        Initialize the crawler.
+
         Args:
-            url: Банкны API-ийн URL
-            date: Огноо YYYY-MM-DD форматаар
+            url: Bank API URL
+            date: Date in YYYY-MM-DD format
         """
         self.url = url
         self.date = date
@@ -34,10 +34,10 @@ class StateBankCrawler:
 
     def crawl(self) -> Dict[str, CurrencyDetail]:
         """
-        Төрийн банкны API-аас валютын ханш татах.
-        
+        Fetch exchange rates from State Bank API.
+
         Returns:
-            Валютын код -> CurrencyDetail объектын толь
+            Mapping of currency code -> CurrencyDetail
         """
         logger.info(f"Fetching rates from {self.BANK_NAME}: {self.url}")
         

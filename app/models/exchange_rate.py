@@ -1,21 +1,21 @@
 """
-Валютын ханшийн Pydantic загварууд.
+Pydantic models for exchange rates.
 """
 from pydantic import BaseModel
 from typing import Dict, Optional
 
 class Rate(BaseModel):
-    """Худалдан авах болон худалдах ханшийн загвар."""
+    """Buy and sell rates model."""
     buy: Optional[float] = None
     sell: Optional[float] = None
 
 class CurrencyDetail(BaseModel):
-    """Бэлэн болон бэлэн бус валютын ханшийн дэлгэрэнгүй загвар."""
+    """Detailed cash and non-cash rates."""
     cash: Rate
     noncash: Rate
 
 class ExchangeRate(BaseModel):
-    """Банкны валютын ханшийн үндсэн загвар."""
+    """Base model representing a bank's exchange rates."""
     date: str
     bank: str
     rates: Dict[str, CurrencyDetail]

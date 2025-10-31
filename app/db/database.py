@@ -1,13 +1,13 @@
 """
-Өгөгдлийн сангийн тохиргооны модуль.
-SQLite, PostgreSQL, MySQL болон бусад SQLAlchemy-тэй нийцтэй өгөгдлийн сангуудыг дэмждэг.
+Database setup module.
+Supports SQLite, PostgreSQL, MySQL and any SQLAlchemy-compatible databases.
 """
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 from app.models.currency import Base
 from app.config import config
 
-# Тохируулсан DATABASE_URL-аас engine үүсгэх
+# Create engine from configured DATABASE_URL
 engine = create_engine(
     config.DATABASE_URL,
     connect_args={"check_same_thread": False} if config.DATABASE_URL.startswith("sqlite") else {}
@@ -15,11 +15,11 @@ engine = create_engine(
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 
 def init_db():
-    """Өгөгдлийн санг эхлүүлж бүх хүснэгтүүдийг үүсгэх."""
+    """Initialize the database and create all tables."""
     Base.metadata.create_all(bind=engine)
 
 def get_db():
-    """FastAPI-д зориулсан өгөгдлийн сангийн сешн авах dependency."""
+    """FastAPI dependency to yield a DB session."""
     db = SessionLocal()
     try:
         yield db

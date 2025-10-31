@@ -6,43 +6,41 @@ on:
       - 'v*.*.*'
 
 jobs:
-  # Python package үүсгэж PyPI руу оруулах (сонголт)
   pypi-publish:
     name: Publish to PyPI
     runs-on: ubuntu-latest
-    # PyPI trusted publisher тохируулсан үед л ажиллана
-    if: false  # Эхлээд false болгох, PyPI тохируулсны дараа true болгох
+    if: false  # Enable after configuring PyPI
     permissions:
       id-token: write
       contents: read
 
     steps:
-      - name: Checkout кодыг татах
+      - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Python тохируулах
+      - name: Set up Python
         uses: actions/setup-python@v5
         with:
           python-version: '3.11'
 
-      - name: Build tools суулгах
+      - name: Install build tools
         run: |
           python -m pip install --upgrade pip
           pip install build twine
 
-      - name: Package бүтээх
+      - name: Build package
         run: python -m build
 
-      - name: Dist файлуудыг шалгах
+      - name: Check distributions
         run: twine check dist/*
 
-      - name: PyPI руу publish хийх
+      - name: Publish to PyPI
         uses: pypa/gh-action-pypi-publish@release/v1
         with:
           skip-existing: true
           verbose: true
 
-  # GitHub Release үүсгэх assets-тай
+  # Create GitHub Release with assets
   github-release:
     name: Create GitHub Release with Assets
     runs-on: ubuntu-latest
@@ -50,44 +48,44 @@ jobs:
       contents: write
 
     steps:
-      - name: Checkout кодыг татах
+      - name: Checkout repository
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
 
-      - name: Python тохируулах
+      - name: Set up Python
         uses: actions/setup-python@v5
         with:
           python-version: '3.11'
 
-      - name: Хамаарлууд суулгах
+      - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
           pip install -r requirements.txt
 
-      - name: Source архив үүсгэх
+      - name: Create source archives
         run: |
           mkdir -p release-assets
           git archive --format=tar.gz --prefix=mongolian-bank-exchange-rate-${{ github.ref_name }}/ HEAD > release-assets/mongolian-bank-exchange-rate-${{ github.ref_name }}.tar.gz
           git archive --format=zip --prefix=mongolian-bank-exchange-rate-${{ github.ref_name }}/ HEAD > release-assets/mongolian-bank-exchange-rate-${{ github.ref_name }}.zip
 
-      - name: Docker compose файл бэлтгэх
+      - name: Prepare docker-compose and env example
         run: |
           cp docker-compose.yml release-assets/docker-compose-${{ github.ref_name }}.yml
           cp .env.example release-assets/env-example-${{ github.ref_name }}.txt
 
-      - name: SHA256 checksums үүсгэх
+      - name: Generate SHA256 checksums
         run: |
           cd release-assets
           sha256sum * > checksums.txt
 
-      - name: Өмнөх tag авах
+      - name: Get previous tag
         id: previoustag
         run: |
           PREV_TAG=$(git tag --sort=-v:refname | sed -n '2p')
           echo "tag=$PREV_TAG" >> $GITHUB_OUTPUT
 
-      - name: Changelog үүсгэх
+      - name: Generate categorized changelog
         id: changelog
         run: |
           if [ -z "${{ steps.previoustag.outputs.tag }}" ]; then
@@ -96,120 +94,107 @@ jobs:
             CHANGELOG=$(git log ${{ steps.previoustag.outputs.tag }}..HEAD --pretty=format:"* %s (%h) - %an" --no-merges)
           fi
           
-          # Категориудаар ангилах
+          # Categorize by type
           FEATURES=$(echo "$CHANGELOG" | grep -i "feat\|feature\|add" || echo "")
           FIXES=$(echo "$CHANGELOG" | grep -i "fix\|bug" || echo "")
           DOCS=$(echo "$CHANGELOG" | grep -i "doc\|readme" || echo "")
           OTHER=$(echo "$CHANGELOG" | grep -vi "feat\|feature\|add\|fix\|bug\|doc\|readme" || echo "")
           
-          FORMATTED_CHANGELOG="## 📝 Өөрчлөлтүүд\n\n"
+          FORMATTED_CHANGELOG="## 📝 Changes\n\n"
           
           if [ ! -z "$FEATURES" ]; then
-            FORMATTED_CHANGELOG="${FORMATTED_CHANGELOG}### ✨ Шинэ онцлогууд\n${FEATURES}\n\n"
+            FORMATTED_CHANGELOG="${FORMATTED_CHANGELOG}### ✨ Features\n${FEATURES}\n\n"
           fi
           
           if [ ! -z "$FIXES" ]; then
-            FORMATTED_CHANGELOG="${FORMATTED_CHANGELOG}### 🐛 Засварууд\n${FIXES}\n\n"
+            FORMATTED_CHANGELOG="${FORMATTED_CHANGELOG}### 🐛 Fixes\n${FIXES}\n\n"
           fi
           
           if [ ! -z "$DOCS" ]; then
-            FORMATTED_CHANGELOG="${FORMATTED_CHANGELOG}### 📚 Баримтжуулалт\n${DOCS}\n\n"
+            FORMATTED_CHANGELOG="${FORMATTED_CHANGELOG}### 📚 Docs\n${DOCS}\n\n"
           fi
           
           if [ ! -z "$OTHER" ]; then
-            FORMATTED_CHANGELOG="${FORMATTED_CHANGELOG}### 🔧 Бусад өөрчлөлтүүд\n${OTHER}\n\n"
+            FORMATTED_CHANGELOG="${FORMATTED_CHANGELOG}### 🔧 Other\n${OTHER}\n\n"
           fi
           
           echo "changelog<<EOF" >> $GITHUB_OUTPUT
           echo -e "$FORMATTED_CHANGELOG" >> $GITHUB_OUTPUT
           echo "EOF" >> $GITHUB_OUTPUT
 
-      - name: Release Notes үүсгэх
+      - name: Generate Release Notes
         run: |
           cat > release-notes.md << 'EOF'
           # 🏦 Mongolian Bank Exchange Rate API ${{ github.ref_name }}
 
-          Монгол Улсын 13 томоохон банкны валютын ханшийг цуглуулж, олон нийтэд API-аар үзүүлдэг систем.
+          Collects currency exchange rates from 13 major Mongolian banks and exposes them via an API.
 
-          ## 📦 Суулгах
+          ## 📦 Install
 
-          ### Docker-оор (Зөвлөмж)
+          ### Docker (Recommended)
           ```bash
-          # Хамгийн сүүлийн хувилбар
+          # Latest version
           docker pull ghcr.io/${{ github.repository }}:${{ github.ref_name }}
           
-          # Ажиллуулах
+          # Run
           docker run -d -p 8000:8000 \
             -e DATABASE_URL=sqlite:///./exchange_rates.db \
             ghcr.io/${{ github.repository }}:${{ github.ref_name }}
           ```
 
-          ### Docker Compose-оор
+          ### Docker Compose
           ```bash
-          # docker-compose файл татах
+          # Download docker-compose file
           wget https://github.com/${{ github.repository }}/releases/download/${{ github.ref_name }}/docker-compose-${{ github.ref_name }}.yml -O docker-compose.yml
           
-          # .env файл тохируулах
+          # Prepare .env file
           wget https://github.com/${{ github.repository }}/releases/download/${{ github.ref_name }}/env-example-${{ github.ref_name }}.txt -O .env
           
-          # Эхлүүлэх
+          # Start
           docker-compose up -d
           ```
 
-          ### Эх кодоос
+          ### From source
           ```bash
-          # Source кодыг татах
+          # Download source
           wget https://github.com/${{ github.repository }}/archive/${{ github.ref_name }}.tar.gz
           tar -xzf ${{ github.ref_name }}.tar.gz
           cd mongolian-bank-exchange-rate-${{ github.ref_name }}
           
-          # Виртуал орчин үүсгэх
+          # Create virtual environment
           python3 -m venv venv
           source venv/bin/activate
           
-          # Хамаарлууд суулгах
+          # Install dependencies
           pip install -r requirements.txt
           playwright install chromium
           
-          # Ажиллуулах
+          # Run
           uvicorn app.api.main:app --host 0.0.0.0 --port 8000
           ```
 
-          ## 🚀 Хурдан эхлүүлэх
+          ## 🚀 Quick Start
 
-          API дараах хаягаар ашиглах боломжтой:
+          API is available at:
           - 📊 API: http://localhost:8000
           - 📖 Docs: http://localhost:8000/docs
           - 🔍 ReDoc: http://localhost:8000/redoc
 
-          ## 🏦 Дэмжигдсэн банкууд
+          ## 🏦 Supported banks
 
-          13 банк:
-          - Хаан банк
-          - Голомт банк
-          - Худалдаа Хөгжлийн банк
-          - Хас банк
-          - Ариг банк
-          - Богд банк
-          - Төрийн банк
-          - Монгол банк
-          - Капитрон банк
-          - Транс банк
-          - Үндэсний хөрөнгө оруулалтын банк
-          - М-банк
-          - Чингис хаан банк
+          13 banks, including: Khan Bank, Golomt Bank, TDBM, XacBank, Arig Bank, Bogd Bank, State Bank, MongolBank, Capitron Bank, TransBank, NI Bank, M-Bank, CK Bank.
 
           ${{ steps.changelog.outputs.changelog }}
 
-          ## 📥 Татах файлууд
+          ## 📥 Downloadable files
 
-          - **Source Code (tar.gz)**: Эх код архив
-          - **Source Code (zip)**: Эх код ZIP
-          - **docker-compose.yml**: Docker Compose тохиргоо
-          - **.env.example**: Орчны тохиргооны жишээ
+          - **Source Code (tar.gz)**
+          - **Source Code (zip)**
+          - **docker-compose.yml**: Docker Compose config
+          - **.env.example**: Environment example
           - **checksums.txt**: SHA256 checksums
 
-          ## 🔗 Холбоосууд
+          ## 🔗 Links
 
           - [GitHub Repository](https://github.com/${{ github.repository }})
           - [Documentation](https://github.com/${{ github.repository }}#readme)
@@ -217,15 +202,15 @@ jobs:
           - [Issues](https://github.com/${{ github.repository }}/issues)
           - [Pull Requests](https://github.com/${{ github.repository }}/pulls)
 
-          ## ⚠️ Анхааруулга
+          ## ⚠️ Notice
 
-          Энэ хэрэгсэл зөвхөн боловсрол болон хувийн хэрэглээнд зориулагдсан. Банк тус бүрийн вэб сайтын үйлчилгээний нөхцлийг хүндэтгэнэ үү.
+          This tool is for educational and personal use. Respect each bank's terms of service.
 
           ---
-          **Бүрэн баримтжуулалт**: https://github.com/${{ github.repository }}/blob/main/README.md
+          **Full documentation**: https://github.com/${{ github.repository }}/blob/main/README.md
           EOF
 
-      - name: GitHub Release үүсгэх
+      - name: Create GitHub Release
         uses: softprops/action-gh-release@v1
         with:
           body_path: release-notes.md
@@ -234,4 +219,4 @@ jobs:
           draft: false
           prerelease: false
         env:
-          GITHUB_TOKEN: ${{ secrets.PAT_TOKEN }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
