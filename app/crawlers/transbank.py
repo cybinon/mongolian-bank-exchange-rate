@@ -2,18 +2,18 @@
 Crawler for TransBank exchange rates (uses Playwright).
 """
 
-import os
 import json
-import re
+import os
 from typing import Dict
-from dotenv import load_dotenv
+
 import urllib3
-from playwright.sync_api import sync_playwright, TimeoutError
+from dotenv import load_dotenv
+from playwright.sync_api import TimeoutError, sync_playwright
 
 load_dotenv()
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
-from app.models.exchange_rate import Rate, CurrencyDetail
+from app.models.exchange_rate import CurrencyDetail, Rate
 from app.utils.logger import get_logger
 
 logger = get_logger(__name__)

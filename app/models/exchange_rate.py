@@ -2,8 +2,9 @@
 Pydantic models for exchange rates.
 """
 
-from pydantic import BaseModel
 from typing import Dict, Optional
+
+from pydantic import BaseModel
 
 
 class Rate(BaseModel):

@@ -2,16 +2,17 @@
 Crawler for State Bank exchange rates.
 """
 
-import requests
 import os
+from typing import Dict
+
+import requests
 import urllib3
-from typing import Dict, Optional
 from dotenv import load_dotenv
 
 load_dotenv()
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
-from app.models.exchange_rate import Rate, CurrencyDetail
+from app.models.exchange_rate import CurrencyDetail, Rate
 from app.utils.logger import get_logger
 
 logger = get_logger(__name__)

@@ -2,9 +2,10 @@
 SQLAlchemy model for exchange rates table.
 """
 
-from sqlalchemy import Column, Integer, String, JSON, DateTime, Date
-from sqlalchemy.ext.declarative import declarative_base
 import datetime
+
+from sqlalchemy import JSON, Column, Date, DateTime, Integer, String
+from sqlalchemy.ext.declarative import declarative_base
 
 Base = declarative_base()
 

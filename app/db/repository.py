@@ -2,12 +2,14 @@
 Repository module for database operations on exchange rates.
 """
 
+import datetime
+from typing import List, Optional
+
 from sqlalchemy.orm import Session
+
 from app.models.currency import CurrencyRate
 from app.models.exchange_rate import ExchangeRate
 from app.utils.logger import get_logger
-import datetime
-from typing import List, Optional
 
 logger = get_logger(__name__)
 

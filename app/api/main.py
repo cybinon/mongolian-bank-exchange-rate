@@ -2,15 +2,16 @@
 Монгол банкны валютын ханшийн FastAPI апликейшн.
 """
 
-from fastapi import FastAPI, Depends, HTTPException, Query
-from sqlalchemy.orm import Session
-from app.db.database import init_db, get_db
-from app.models.currency import CurrencyRate
-from app.db import repository
-from app.services.scraper_service import ScraperService
-from typing import List, Optional
-from pydantic import BaseModel
 import datetime
+from typing import List, Optional
+
+from fastapi import Depends, FastAPI, HTTPException, Query
+from pydantic import BaseModel
+from sqlalchemy.orm import Session
+
+from app.db import repository
+from app.db.database import get_db, init_db
+from app.services.scraper_service import ScraperService
 
 app = FastAPI(
     title="Mongolian Bank Exchange Rates API",

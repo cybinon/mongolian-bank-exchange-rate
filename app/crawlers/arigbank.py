@@ -2,12 +2,11 @@
 Crawler for Arig Bank exchange rates.
 """
 
-import os
-import urllib3
 from datetime import datetime
 from typing import Dict
 
 import requests
+import urllib3
 from dotenv import load_dotenv
 
 from app.config import config

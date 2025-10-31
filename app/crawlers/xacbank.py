@@ -2,18 +2,19 @@
 Crawler for XacBank exchange rates.
 """
 
-import requests
 import os
-import urllib3
-from typing import Dict, Optional
-from dotenv import load_dotenv
 from datetime import datetime, timedelta
+from typing import Dict
 from urllib.parse import quote
+
+import requests
+import urllib3
+from dotenv import load_dotenv
 
 load_dotenv()
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
-from app.models.exchange_rate import Rate, CurrencyDetail
+from app.models.exchange_rate import CurrencyDetail, Rate
 from app.utils.logger import get_logger
 
 logger = get_logger(__name__)

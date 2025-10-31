@@ -3,17 +3,19 @@ Crawler for Trade and Development Bank (TDBM) exchange rates (uses Playwright).
 """
 
 import os
-import urllib3
-from typing import Dict, Optional
-from dotenv import load_dotenv
-from playwright.sync_api import sync_playwright, TimeoutError as PlaywrightTimeoutError
-from datetime import datetime, timedelta
 import time
+from datetime import datetime, timedelta
+from typing import Dict, Optional
+
+import urllib3
+from dotenv import load_dotenv
+from playwright.sync_api import TimeoutError as PlaywrightTimeoutError
+from playwright.sync_api import sync_playwright
 
 load_dotenv()
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
-from app.models.exchange_rate import Rate, CurrencyDetail
+from app.models.exchange_rate import CurrencyDetail, Rate
 from app.utils.logger import get_logger
 
 logger = get_logger(__name__)
@@ -110,7 +112,8 @@ class TDBMCrawler:
                     if not currency_code or len(currency_code) != 3:
                         continue
 
-                    mongol_bank = self._parse_float(cells[3].inner_text())
+                    # Mongol Bank column present but not used in calculations
+                    self._parse_float(cells[3].inner_text())
                     noncash_buy = self._parse_float(cells[4].inner_text())
                     noncash_sell = self._parse_float(cells[5].inner_text())
                     cash_buy = self._parse_float(cells[6].inner_text())
@@ -144,7 +147,7 @@ if __name__ == "__main__":
     try:
         rates = crawler.crawl()
         if len(rates) == 0:
-            print(f"TDBM has no rates available")
+            print("TDBM has no rates available")
         else:
             print(f"Successfully fetched rates for {len(rates)} currencies")
             for currency, details in rates.items():

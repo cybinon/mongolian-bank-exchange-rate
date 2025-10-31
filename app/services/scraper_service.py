@@ -2,28 +2,27 @@
 Service module to collect exchange rates from multiple banks.
 """
 
-from app.crawlers.khanbank import KhanBankCrawler
-from app.crawlers.tdbm import TDBMCrawler
-from app.crawlers.golomt import GolomtBankCrawler
-from app.crawlers.xacbank import XacBankCrawler
+import datetime
+from typing import Dict, Optional
+
+from app.config import config
 from app.crawlers.arigbank import ArigBankCrawler
 from app.crawlers.bogdbank import BogdBankCrawler
-from app.crawlers.statebank import StateBankCrawler
-from app.crawlers.mongolbank import MongolBankCrawler
 from app.crawlers.capitronbank import CapitronBankCrawler
-from app.crawlers.transbank import TransBankCrawler
-from app.crawlers.nibank import NIBankCrawler
-from app.crawlers.mbank import MBankCrawler
 from app.crawlers.ckbank import CKBankCrawler
-
+from app.crawlers.golomt import GolomtBankCrawler
+from app.crawlers.khanbank import KhanBankCrawler
+from app.crawlers.mbank import MBankCrawler
+from app.crawlers.mongolbank import MongolBankCrawler
+from app.crawlers.nibank import NIBankCrawler
+from app.crawlers.statebank import StateBankCrawler
+from app.crawlers.tdbm import TDBMCrawler
+from app.crawlers.transbank import TransBankCrawler
+from app.crawlers.xacbank import XacBankCrawler
 from app.db import repository
 from app.db.database import SessionLocal
-from app.config import config
+from app.models.exchange_rate import CurrencyDetail, ExchangeRate
 from app.utils.logger import get_logger
-import datetime
-from app.models.exchange_rate import ExchangeRate
-from typing import Dict, Optional
-from app.models.exchange_rate import CurrencyDetail
 
 logger = get_logger(__name__)
 

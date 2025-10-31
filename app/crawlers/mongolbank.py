@@ -2,16 +2,17 @@
 Crawler for MongolBank exchange rates.
 """
 
-import requests
 import os
-import urllib3
 from typing import Dict, Optional
+
+import requests
+import urllib3
 from dotenv import load_dotenv
 
 load_dotenv()
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
-from app.models.exchange_rate import Rate, CurrencyDetail
+from app.models.exchange_rate import CurrencyDetail, Rate
 from app.utils.logger import get_logger
 
 logger = get_logger(__name__)
@@ -55,7 +56,7 @@ class MongolBankCrawler:
 
             data = json_data.get("data", [])
             if not isinstance(data, list) or len(data) == 0:
-                raise ValueError(f"Expected non-empty list in data field")
+                raise ValueError("Expected non-empty list in data field")
 
             rates = self._parse_rates(data[0])
             logger.info(f"Successfully fetched {len(rates)} currencies from {self.BANK_NAME}")

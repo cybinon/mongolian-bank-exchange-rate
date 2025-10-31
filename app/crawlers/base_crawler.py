@@ -4,15 +4,14 @@ Standard crawler template for Mongolian bank exchange rates.
 All crawlers should follow this structure for consistency.
 """
 
-import os
-import urllib3
 from abc import ABC, abstractmethod
 from typing import Dict, Optional
 
+import urllib3
 from dotenv import load_dotenv
 
 from app.config import config
-from app.models.exchange_rate import CurrencyDetail, Rate
+from app.models.exchange_rate import CurrencyDetail
 from app.utils.logger import get_logger
 
 load_dotenv()

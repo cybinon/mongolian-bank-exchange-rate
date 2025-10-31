@@ -2,19 +2,19 @@
 Crawler for Khan Bank exchange rates.
 """
 
-import requests
 import datetime
-from dotenv import load_dotenv
 import os
-import urllib3
 from typing import Dict, Optional
-import warnings
+
+import requests
+import urllib3
+from dotenv import load_dotenv
 
 load_dotenv()
 
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
-from app.models.exchange_rate import Rate, CurrencyDetail
+from app.models.exchange_rate import CurrencyDetail, Rate
 from app.utils.logger import get_logger
 
 logger = get_logger(__name__)

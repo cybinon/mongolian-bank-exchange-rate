@@ -5,8 +5,9 @@ Supports SQLite, PostgreSQL, MySQL and any SQLAlchemy-compatible databases.
 
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
-from app.models.currency import Base
+
 from app.config import config
+from app.models.currency import Base
 
 # Create engine from configured DATABASE_URL
 engine = create_engine(

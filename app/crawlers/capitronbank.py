@@ -2,16 +2,17 @@
 Crawler for Capitron Bank exchange rates.
 """
 
-import requests
 import os
-import urllib3
 from typing import Dict, Optional
+
+import requests
+import urllib3
 from dotenv import load_dotenv
 
 load_dotenv()
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
-from app.models.exchange_rate import Rate, CurrencyDetail
+from app.models.exchange_rate import CurrencyDetail, Rate
 from app.utils.logger import get_logger
 
 logger = get_logger(__name__)
@@ -109,7 +110,7 @@ if __name__ == "__main__":
 
     sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "../..")))
 
-    from datetime import date, timedelta
+    from datetime import date
 
     url = os.getenv("CAPITRONBANK_URI", "https://www.capitronbank.mn/p/exchange?lang=en")
 
