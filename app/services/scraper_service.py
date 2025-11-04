@@ -3,7 +3,8 @@ Service module to collect exchange rates from multiple banks.
 """
 
 import datetime
-from typing import Dict, Optional
+from concurrent.futures import ThreadPoolExecutor, as_completed
+from typing import Dict, List, Optional, Tuple
 
 from app.config import config
 from app.crawlers.arigbank import ArigBankCrawler
@@ -55,21 +56,67 @@ class ScraperService:
         ]
 
     def run_crawlers(self):
-        """Run all crawlers and save results to the database."""
+        def _crawl_one(crawler) -> Tuple[str, Optional[Dict[str, CurrencyDetail]], Optional[Exception]]:
+            bank_name = crawler.__class__.__name__.replace("Crawler", "")
+            try:
+                rates = crawler.crawl()
+                return bank_name, rates, None
+            except Exception as e:
+                return bank_name, None, e
+
+        results: List[Tuple[str, Optional[Dict[str, CurrencyDetail]], Optional[Exception]]] = []
+
+        if config.ENABLE_PARALLEL:
+            logger.info(
+                f"Running crawlers in parallel for date {self.date}: http={len(http_crawlers)} (max={config.MAX_WORKERS}), browser={len(playwright_crawlers)} (max={config.PLAYWRIGHT_MAX_WORKERS})"
+            )
+            # Run both pools concurrently
+            with ThreadPoolExecutor(max_workers=2) as coordinator:
+                http_future = coordinator.submit(self._run_pool, http_crawlers, _crawl_one, config.MAX_WORKERS)
+                pw_future = coordinator.submit(
+                    self._run_pool, playwright_crawlers, _crawl_one, config.PLAYWRIGHT_MAX_WORKERS
+                )
+                for future in as_completed([http_future, pw_future]):
+                    results.extend(future.result())
+        else:
+            logger.info(f"Running crawlers sequentially for date {self.date}")
+            for crawler in self.crawlers:
+                bank_name, rates, error = _crawl_one(crawler)
+                if error:
+                    logger.error(f"Failed to crawl from {bank_name}: {error}")
+                else:
+                    logger.info(f"Successfully crawled {bank_name} with {len(rates or {})} currencies")
+                results.append((bank_name, rates, error))
+
         db = SessionLocal()
         try:
-            for crawler in self.crawlers:
+            for bank_name, rates, error in results:
+                if error or not rates:
+                    continue
                 try:
-                    rates = crawler.crawl()
-                    if rates:
-                        bank_name = crawler.__class__.__name__.replace("Crawler", "")
-                        exchange_rate_data = ExchangeRate(date=self.date, bank=bank_name, rates=rates)
-                        repository.save_rates(db, exchange_rate_data)
-                        logger.info(f"Successfully crawled and saved rates from {bank_name}")
+                    exchange_rate_data = ExchangeRate(date=self.date, bank=bank_name, rates=rates)
+                    repository.save_rates(db, exchange_rate_data)
+                    logger.info(f"Saved rates from {bank_name}")
                 except Exception as e:
-                    logger.error(f"Failed to crawl from {crawler.__class__.__name__}: {e}")
+                    logger.error(f"Failed to save rates for {bank_name}: {e}")
         finally:
             db.close()
+
+    @staticmethod
+    def _run_pool(crawlers: List[object], worker, max_workers: int):
+        results: List[Tuple[str, Optional[Dict[str, CurrencyDetail]], Optional[Exception]]] = []
+        if not crawlers or max_workers <= 0:
+            return results
+        with ThreadPoolExecutor(max_workers=max_workers) as executor:
+            future_map = {executor.submit(worker, crawler): crawler for crawler in crawlers}
+            for future in as_completed(future_map):
+                bank_name, rates, error = future.result()
+                if error:
+                    logger.error(f"Failed to crawl from {bank_name}: {error}")
+                else:
+                    logger.info(f"Successfully crawled {bank_name} with {len(rates or {})} currencies")
+                results.append((bank_name, rates, error))
+        return results
 
     def scrape_bank(self, bank_name: str) -> Optional[Dict[str, CurrencyDetail]]:
         """

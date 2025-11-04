@@ -27,6 +27,10 @@ class CrawlerConfig:
     REQUEST_TIMEOUT: int = int(os.getenv("REQUEST_TIMEOUT", "30"))
     PLAYWRIGHT_TIMEOUT: int = int(os.getenv("PLAYWRIGHT_TIMEOUT", "60000"))  # миллисекунд
 
+    # Parallelism
+    ENABLE_PARALLEL: bool = os.getenv("ENABLE_PARALLEL", "true").lower() in ("true", "1", "t", "yes")
+    MAX_WORKERS: int = int(os.getenv("MAX_WORKERS", "8"))
+
     # Bank API/website URIs
     KHANBANK_URI: str = os.getenv("KHANBANK_URI", "https://www.khanbank.com/api/back/rates")
     TDBM_URI: str = os.getenv("TDBM_URI", "https://www.tdbm.mn/en/exchange-rates")
