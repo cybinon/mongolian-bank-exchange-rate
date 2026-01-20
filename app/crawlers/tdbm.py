@@ -1,9 +1,4 @@
-"""
-Crawler for Trade and Development Bank (TDBM) exchange rates (uses Playwright).
-"""
-
 import os
-import time
 from datetime import datetime, timedelta
 from typing import Dict, Optional
 
@@ -23,33 +18,16 @@ logger = get_logger(__name__)
 
 
 class TDBMCrawler:
-    """Crawler to fetch exchange rates from TDBM website."""
-
     BANK_NAME = "TDBM"
     REQUEST_TIMEOUT = config.PLAYWRIGHT_TIMEOUT
 
     def __init__(self, url: str, date: str):
-        """
-        Initialize the crawler.
-
-        Args:
-            url: Bank website URL
-            date: Date in YYYY-MM-DD format
-        """
         self.url = url
         self.date = date
         self.ssl_verify = os.getenv("SSL_VERIFY", "True").lower() in ("true", "1", "t")
         self.request_timeout = config.PLAYWRIGHT_TIMEOUT
 
     def crawl(self) -> Dict[str, CurrencyDetail]:
-        """
-        Fetch exchange rates from the TDBM website.
-
-        Returns:
-            Mapping of currency code -> CurrencyDetail
-        """
-        logger.info(f"Fetching rates from {self.BANK_NAME}: {self.url}")
-
         try:
             with sync_playwright() as p:
                 browser = p.chromium.launch(headless=True)
@@ -59,23 +37,19 @@ class TDBMCrawler:
 
                 self._navigate_with_retries(page)
 
-                # Find and set date to yesterday if today has no data
                 date_inputs = page.locator("input[type=date]").all()
                 if date_inputs:
-                    # Try today first
+
                     today = datetime.now().strftime("%Y-%m-%d")
                     date_inputs[0].fill(today)
 
-                    # Click submit button to load data
                     buttons = page.locator("form button, form input[type=submit]").all()
                     if buttons:
                         buttons[0].click()
                         page.wait_for_selector("table.table-hover", state="visible", timeout=self.request_timeout)
 
-                    # Check if we have data
                     rates = self._parse_rates(page)
 
-                    # If no rates, try yesterday
                     if not rates:
                         logger.info(f"{self.BANK_NAME} has no data for today, trying yesterday")
                         yesterday = (datetime.now() - timedelta(days=1)).strftime("%Y-%m-%d")
@@ -89,7 +63,6 @@ class TDBMCrawler:
 
                 browser.close()
 
-            logger.info(f"Successfully fetched {len(rates)} currencies from {self.BANK_NAME}")
             return rates
 
         except PlaywrightTimeoutError:
@@ -113,7 +86,6 @@ class TDBMCrawler:
                     if not currency_code or len(currency_code) != 3:
                         continue
 
-                    # Mongol Bank column present but not used in calculations
                     self._parse_float(cells[3].inner_text())
                     noncash_buy = self._parse_float(cells[4].inner_text())
                     noncash_sell = self._parse_float(cells[5].inner_text())
@@ -169,7 +141,6 @@ if __name__ == "__main__":
         if len(rates) == 0:
             print("TDBM has no rates available")
         else:
-            print(f"Successfully fetched rates for {len(rates)} currencies")
             for currency, details in rates.items():
                 print(
                     f"{currency.upper()}: Cash Buy={details.cash.buy}, Cash Sell={details.cash.sell}, "

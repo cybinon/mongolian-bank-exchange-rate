@@ -14,24 +14,19 @@ load_dotenv()
 class CrawlerConfig:
     """Configuration holder for the crawler service."""
 
-    # Database configuration
     DATABASE_URL: str = os.getenv("DATABASE_URL", "sqlite:///./exchange_rates.db")
 
-    # Schedule configuration
     CRON_SCHEDULE: str = os.getenv("CRON_SCHEDULE", "0 1 * * *")
 
-    # SSL verification
     SSL_VERIFY: bool = os.getenv("SSL_VERIFY", "False").lower() in ("true", "1", "t", "yes")
 
-    # Timeouts
     REQUEST_TIMEOUT: int = int(os.getenv("REQUEST_TIMEOUT", "30"))
-    PLAYWRIGHT_TIMEOUT: int = int(os.getenv("PLAYWRIGHT_TIMEOUT", "60000"))  # миллисекунд
+    PLAYWRIGHT_TIMEOUT: int = int(os.getenv("PLAYWRIGHT_TIMEOUT", "60000"))
 
-    # Parallelism
     ENABLE_PARALLEL: bool = os.getenv("ENABLE_PARALLEL", "true").lower() in ("true", "1", "t", "yes")
     MAX_WORKERS: int = int(os.getenv("MAX_WORKERS", "8"))
+    PLAYWRIGHT_MAX_WORKERS: int = int(os.getenv("PLAYWRIGHT_MAX_WORKERS", "3"))
 
-    # Bank API/website URIs
     KHANBANK_URI: str = os.getenv("KHANBANK_URI", "https://www.khanbank.com/api/back/rates")
     TDBM_URI: str = os.getenv("TDBM_URI", "https://www.tdbm.mn/en/exchange-rates")
     GOLOMT_URI: str = os.getenv("GOLOMT_URI", "https://www.golomtbank.com/api/exchange")
@@ -48,7 +43,6 @@ class CrawlerConfig:
     NIBANK_URI: str = os.getenv("NIBANK_URI", "https://www.nibank.mn/en/rate")
     MBANK_URI: str = os.getenv("MBANK_URI", "https://m-bank.mn/")
 
-    # Arig Bank special settings
     ARIGBANK_BEARER_TOKEN: Optional[str] = os.getenv("ARIGBANK_BEARER_TOKEN")
     ARIGBANK_API_URL: str = os.getenv("ARIGBANK_API_URL", "https://www.arigbank.mn/exchange/getRate")
 
@@ -73,5 +67,4 @@ class CrawlerConfig:
         return uri_map.get(bank_name.lower())
 
 
-# Create a singleton instance
 config = CrawlerConfig()

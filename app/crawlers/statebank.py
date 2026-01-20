@@ -1,7 +1,3 @@
-"""
-Crawler for State Bank exchange rates.
-"""
-
 import os
 from typing import Dict
 
@@ -19,32 +15,15 @@ logger = get_logger(__name__)
 
 
 class StateBankCrawler:
-    """Crawler to fetch exchange rates from State Bank API."""
-
     BANK_NAME = "StateBank"
     REQUEST_TIMEOUT = 30
 
     def __init__(self, url: str, date: str):
-        """
-        Initialize the crawler.
-
-        Args:
-            url: Bank API URL
-            date: Date in YYYY-MM-DD format
-        """
         self.url = url
         self.date = date
         self.ssl_verify = os.getenv("SSL_VERIFY", "True").lower() in ("true", "1", "t")
 
     def crawl(self) -> Dict[str, CurrencyDetail]:
-        """
-        Fetch exchange rates from State Bank API.
-
-        Returns:
-            Mapping of currency code -> CurrencyDetail
-        """
-        logger.info(f"Fetching rates from {self.BANK_NAME}: {self.url}")
-
         try:
             response = requests.get(url=self.url, verify=self.ssl_verify, timeout=self.REQUEST_TIMEOUT)
             response.raise_for_status()
@@ -54,7 +33,6 @@ class StateBankCrawler:
                 raise ValueError(f"Expected list, got {type(data)}")
 
             rates = self._parse_rates(data)
-            logger.info(f"Successfully fetched {len(rates)} currencies from {self.BANK_NAME}")
             return rates
 
         except requests.exceptions.Timeout:
@@ -98,7 +76,6 @@ if __name__ == "__main__":
     crawler = StateBankCrawler(url=url, date="")
     try:
         rates = crawler.crawl()
-        print(f"Successfully fetched rates for {len(rates)} currencies")
         for currency, details in rates.items():
             print(
                 f"{currency.upper()}: Cash Buy={details.cash.buy}, Cash Sell={details.cash.sell}, "

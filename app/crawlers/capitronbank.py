@@ -1,7 +1,3 @@
-"""
-Crawler for Capitron Bank exchange rates.
-"""
-
 import os
 from typing import Dict, Optional
 
@@ -19,33 +15,16 @@ logger = get_logger(__name__)
 
 
 class CapitronBankCrawler:
-    """Crawler to fetch exchange rates from Capitron Bank API."""
-
     BANK_NAME = "CapitronBank"
     REQUEST_TIMEOUT = 30
     API_URL = "https://www.capitronbank.mn/admin/en/wp-json/bank/rates/capitronbank"
 
     def __init__(self, url: str, date: str):
-        """
-        Initialize the crawler.
-
-        Args:
-            url: Bank website/API URL
-            date: Date in YYYY-MM-DD format
-        """
         self.url = url
         self.date = date
         self.ssl_verify = os.getenv("SSL_VERIFY", "True").lower() in ("true", "1", "t")
 
     def crawl(self) -> Dict[str, CurrencyDetail]:
-        """
-        Fetch exchange rates from Capitron Bank API.
-
-        Returns:
-            Mapping of currency code -> CurrencyDetail
-        """
-        logger.info(f"Fetching rates from {self.BANK_NAME}: {self.API_URL}")
-
         try:
             response = requests.get(url=self.API_URL, verify=self.ssl_verify, timeout=self.REQUEST_TIMEOUT)
             response.raise_for_status()
@@ -55,7 +34,6 @@ class CapitronBankCrawler:
                 raise ValueError(f"Expected list, got {type(data)}")
 
             rates = self._parse_rates(data)
-            logger.info(f"Successfully fetched {len(rates)} currencies from {self.BANK_NAME}")
             return rates
 
         except requests.exceptions.Timeout:
@@ -125,7 +103,6 @@ if __name__ == "__main__":
         if len(rates) == 0:
             print(f"CapitronBank has no rates available for {today}")
         else:
-            print(f"Successfully fetched rates for {len(rates)} currencies")
             for currency, details in list(rates.items())[:3]:
                 print(
                     f"{currency.upper()}: Cash Buy={details.cash.buy}, Cash Sell={details.cash.sell}, "

@@ -1,7 +1,3 @@
-"""
-Crawler for Bogd Bank exchange rates (uses Playwright).
-"""
-
 import os
 import time
 from typing import Dict, Optional
@@ -21,32 +17,15 @@ logger = get_logger(__name__)
 
 
 class BogdBankCrawler:
-    """Crawler to fetch exchange rates from Bogd Bank website."""
-
     BANK_NAME = "BogdBank"
     REQUEST_TIMEOUT = 60000
 
     def __init__(self, url: str, date: str):
-        """
-        Initialize the crawler.
-
-        Args:
-            url: Bank website URL
-            date: Date in YYYY-MM-DD format
-        """
         self.url = url
         self.date = date
         self.ssl_verify = os.getenv("SSL_VERIFY", "True").lower() in ("true", "1", "t")
 
     def crawl(self) -> Dict[str, CurrencyDetail]:
-        """
-        Fetch exchange rates from the Bogd Bank website.
-
-        Returns:
-            Mapping of currency code -> CurrencyDetail
-        """
-        logger.info(f"Fetching rates from {self.BANK_NAME}: {self.url}")
-
         try:
             with sync_playwright() as p:
                 browser = p.chromium.launch(headless=True)
@@ -63,7 +42,6 @@ class BogdBankCrawler:
 
                 browser.close()
 
-            logger.info(f"Successfully fetched {len(rates)} currencies from {self.BANK_NAME}")
             return rates
 
         except PlaywrightTimeoutError:
@@ -136,7 +114,6 @@ if __name__ == "__main__":
         if len(rates) == 0:
             print(f"BogdBank has no rates available for {today}")
         else:
-            print(f"Successfully fetched rates for {len(rates)} currencies")
             for currency, details in list(rates.items())[:5]:
                 print(
                     f"{currency.upper()}: Cash Buy={details.cash.buy}, Cash Sell={details.cash.sell}, "
@@ -156,7 +133,6 @@ if __name__ == "__main__":
         if len(rates2) == 0:
             print(f"BogdBank has no rates available for {yesterday}")
         else:
-            print(f"Successfully fetched rates for {len(rates2)} currencies")
             for currency, details in list(rates2.items())[:5]:
                 print(
                     f"{currency.upper()}: Cash Buy={details.cash.buy}, Cash Sell={details.cash.sell}, "

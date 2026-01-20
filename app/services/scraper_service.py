@@ -29,15 +29,7 @@ logger = get_logger(__name__)
 
 
 class ScraperService:
-    """Service for scraping exchange rates from multiple banks."""
-
     def __init__(self, date: Optional[str] = None):
-        """
-        Initialize the scraper service.
-
-        Args:
-            date: Date in ISO format (YYYY-MM-DD). Defaults to today.
-        """
         self.date = date or datetime.date.today().isoformat()
         self.crawlers = [
             KhanBankCrawler(config.KHANBANK_URI, self.date),
@@ -56,38 +48,64 @@ class ScraperService:
         ]
 
     def run_crawlers(self):
-        def _crawl_one(crawler) -> Tuple[str, Optional[Dict[str, CurrencyDetail]], Optional[Exception]]:
-            bank_name = crawler.__class__.__name__.replace("Crawler", "")
-            try:
-                rates = crawler.crawl()
-                return bank_name, rates, None
-            except Exception as e:
-                return bank_name, None, e
-
-        results: List[Tuple[str, Optional[Dict[str, CurrencyDetail]], Optional[Exception]]] = []
+        crawlers_map = self._group_crawlers()
+        results = []
 
         if config.ENABLE_PARALLEL:
-            logger.info(
-                f"Running crawlers in parallel for date {self.date}: http={len(http_crawlers)} (max={config.MAX_WORKERS}), browser={len(playwright_crawlers)} (max={config.PLAYWRIGHT_MAX_WORKERS})"
-            )
-            # Run both pools concurrently
             with ThreadPoolExecutor(max_workers=2) as coordinator:
-                http_future = coordinator.submit(self._run_pool, http_crawlers, _crawl_one, config.MAX_WORKERS)
-                pw_future = coordinator.submit(
-                    self._run_pool, playwright_crawlers, _crawl_one, config.PLAYWRIGHT_MAX_WORKERS
-                )
-                for future in as_completed([http_future, pw_future]):
+                futures = [
+                    coordinator.submit(
+                        self._run_crawler_group,
+                        group,
+                        config.MAX_WORKERS if type_ == "http" else config.PLAYWRIGHT_MAX_WORKERS,
+                    )
+                    for type_, group in crawlers_map.items()
+                ]
+                for future in as_completed(futures):
                     results.extend(future.result())
         else:
-            logger.info(f"Running crawlers sequentially for date {self.date}")
             for crawler in self.crawlers:
-                bank_name, rates, error = _crawl_one(crawler)
-                if error:
-                    logger.error(f"Failed to crawl from {bank_name}: {error}")
-                else:
-                    logger.info(f"Successfully crawled {bank_name} with {len(rates or {})} currencies")
-                results.append((bank_name, rates, error))
+                results.append(self._execute_crawler(crawler))
 
+        self._save_results(results)
+
+    def _group_crawlers(self) -> Dict[str, List]:
+        playwright_classes = (
+            TDBMCrawler,
+            TransBankCrawler,
+            NIBankCrawler,
+            MBankCrawler,
+            BogdBankCrawler,
+            CKBankCrawler,
+        )
+        return {
+            "playwright": [c for c in self.crawlers if isinstance(c, playwright_classes)],
+            "http": [c for c in self.crawlers if not isinstance(c, playwright_classes)],
+        }
+
+    def _run_crawler_group(
+        self, crawlers: List, max_workers: int
+    ) -> List[Tuple[str, Optional[Dict], Optional[Exception]]]:
+        results = []
+        with ThreadPoolExecutor(max_workers=max_workers) as executor:
+            future_to_crawler = {executor.submit(self._execute_crawler, c): c for c in crawlers}
+            for future in as_completed(future_to_crawler):
+                results.append(future.result())
+        return results
+
+    def _execute_crawler(self, crawler) -> Tuple[str, Optional[Dict], Optional[Exception]]:
+        bank_name = crawler.__class__.__name__.replace("Crawler", "")
+        try:
+            rates = crawler.crawl()
+            if rates:
+                currencies = ", ".join(sorted(rates.keys()))
+                logger.info(f"Fetched {len(rates)} currencies from {bank_name}: {currencies}")
+            return bank_name, rates, None
+        except Exception as e:
+            logger.error(f"Error crawling {bank_name}: {e}")
+            return bank_name, None, e
+
+    def _save_results(self, results):
         db = SessionLocal()
         try:
             for bank_name, rates, error in results:
@@ -96,38 +114,12 @@ class ScraperService:
                 try:
                     exchange_rate_data = ExchangeRate(date=self.date, bank=bank_name, rates=rates)
                     repository.save_rates(db, exchange_rate_data)
-                    logger.info(f"Saved rates from {bank_name}")
                 except Exception as e:
                     logger.error(f"Failed to save rates for {bank_name}: {e}")
         finally:
             db.close()
 
-    @staticmethod
-    def _run_pool(crawlers: List[object], worker, max_workers: int):
-        results: List[Tuple[str, Optional[Dict[str, CurrencyDetail]], Optional[Exception]]] = []
-        if not crawlers or max_workers <= 0:
-            return results
-        with ThreadPoolExecutor(max_workers=max_workers) as executor:
-            future_map = {executor.submit(worker, crawler): crawler for crawler in crawlers}
-            for future in as_completed(future_map):
-                bank_name, rates, error = future.result()
-                if error:
-                    logger.error(f"Failed to crawl from {bank_name}: {error}")
-                else:
-                    logger.info(f"Successfully crawled {bank_name} with {len(rates or {})} currencies")
-                results.append((bank_name, rates, error))
-        return results
-
     def scrape_bank(self, bank_name: str) -> Optional[Dict[str, CurrencyDetail]]:
-        """
-        Scrape a specific bank without saving to the database.
-
-        Args:
-            bank_name: Bank name (case-insensitive)
-
-        Returns:
-            Dict of currency rates, or None if bank not found
-        """
         bank_name_lower = bank_name.lower()
 
         crawler_map = {
@@ -155,8 +147,11 @@ class ScraperService:
         try:
             crawler = crawler_factory()
             rates = crawler.crawl()
-            logger.info(f"Successfully scraped rates from {bank_name}")
+            if rates:
+                currencies = ", ".join(sorted(rates.keys()))
+                logger.info(f"Fetched {len(rates)} currencies from {bank_name}: {currencies}")
             return rates
+
         except Exception as e:
             logger.error(f"Failed to scrape from {bank_name}: {e}")
             return None

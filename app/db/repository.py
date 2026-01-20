@@ -128,7 +128,7 @@ def get_latest_rates(db: Session) -> List[CurrencyRate]:
     Returns:
         List of the latest CurrencyRate per bank
     """
-    # Distinct bank names
+
     banks = db.query(CurrencyRate.bank_name).distinct().all()
 
     latest_rates = []

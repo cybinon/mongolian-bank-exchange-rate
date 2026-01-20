@@ -1,7 +1,3 @@
-"""
-Exchange rate crawler for Chinggis Khaan Bank (using Playwright).
-"""
-
 import os
 from typing import Dict
 
@@ -19,32 +15,15 @@ logger = get_logger(__name__)
 
 
 class CKBankCrawler:
-    """Crawler for fetching exchange rates from Chinggis Khaan Bank's website."""
-
     BANK_NAME = "CKBank"
     REQUEST_TIMEOUT = 60000
 
     def __init__(self, url: str, date: str):
-        """
-        Initialize the crawler.
-
-        Args:
-            url: Bank website URL
-            date: Date in YYYY-MM-DD format
-        """
         self.url = url
         self.date = date
         self.ssl_verify = os.getenv("SSL_VERIFY", "True").lower() in ("true", "1", "t")
 
     def crawl(self) -> Dict[str, CurrencyDetail]:
-        """
-        Fetch exchange rates from Chinggis Khaan Bank.
-
-        Returns:
-            Dict mapping currency code -> CurrencyDetail object
-        """
-        logger.info(f"Fetching rates from {self.BANK_NAME}: {self.url}")
-
         try:
             with sync_playwright() as p:
                 browser = p.chromium.launch(headless=True)
@@ -56,7 +35,6 @@ class CKBankCrawler:
                 rates = self._parse_rates(page)
                 browser.close()
 
-                logger.info(f"Successfully fetched {len(rates)} currencies from {self.BANK_NAME}")
                 return rates
 
         except TimeoutError:

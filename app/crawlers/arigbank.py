@@ -1,7 +1,3 @@
-"""
-Crawler for Arig Bank exchange rates.
-"""
-
 from datetime import datetime
 from typing import Dict
 
@@ -20,18 +16,9 @@ logger = get_logger(__name__)
 
 
 class ArigBankCrawler:
-    """Crawler to fetch exchange rates from Arig Bank API."""
-
     BANK_NAME = "ArigBank"
 
     def __init__(self, url: str, date: str):
-        """
-        Initialize Arig Bank crawler.
-
-        Args:
-            url: Bank website/API URL
-            date: Date in YYYY-MM-DD format
-        """
         self.url = url
         self.date = date
         self.API_URL = config.ARIGBANK_API_URL
@@ -40,14 +27,6 @@ class ArigBankCrawler:
         self.timeout = config.REQUEST_TIMEOUT
 
     def crawl(self) -> Dict[str, CurrencyDetail]:
-        """
-        Fetch exchange rates from Arig Bank API.
-
-        Returns:
-            Mapping of currency code -> CurrencyDetail
-        """
-        logger.info(f"Fetching rates from {self.BANK_NAME}: {self.API_URL}")
-
         try:
             date_str = self.date.replace("-", "")
 
@@ -66,7 +45,6 @@ class ArigBankCrawler:
                 raise ValueError(f"Expected list in data field, got {type(data)}")
 
             rates = self._parse_rates(data)
-            logger.info(f"Successfully fetched {len(rates)} currencies from {self.BANK_NAME}")
             return rates
 
         except requests.exceptions.Timeout:
@@ -80,15 +58,6 @@ class ArigBankCrawler:
             raise
 
     def _parse_rates(self, data: list) -> Dict[str, CurrencyDetail]:
-        """
-        Parse exchange rate data from API response.
-
-        Args:
-            data: List of currency rate dictionaries
-
-        Returns:
-            Dictionary mapping currency codes to CurrencyDetail objects
-        """
         rates = {}
         for item in data:
             try:

@@ -1,7 +1,3 @@
-"""
-Crawler for MongolBank exchange rates.
-"""
-
 import os
 from typing import Dict, Optional
 
@@ -19,33 +15,16 @@ logger = get_logger(__name__)
 
 
 class MongolBankCrawler:
-    """Crawler to fetch exchange rates from MongolBank API."""
-
     BANK_NAME = "MongolBank"
     REQUEST_TIMEOUT = 30
     API_URL = "https://www.mongolbank.mn/en/currency-rate-movement/data"
 
     def __init__(self, url: str, date: str):
-        """
-        Initialize the crawler.
-
-        Args:
-            url: Bank website/API URL
-            date: Date in YYYY-MM-DD format
-        """
         self.url = url
         self.date = date
         self.ssl_verify = os.getenv("SSL_VERIFY", "True").lower() in ("true", "1", "t")
 
     def crawl(self) -> Dict[str, CurrencyDetail]:
-        """
-        Fetch exchange rates from MongolBank API.
-
-        Returns:
-            Mapping of currency code -> CurrencyDetail
-        """
-        logger.info(f"Fetching rates from {self.BANK_NAME}: {self.API_URL}")
-
         try:
             response = requests.post(url=self.API_URL, verify=self.ssl_verify, timeout=self.REQUEST_TIMEOUT)
             response.raise_for_status()
@@ -59,7 +38,6 @@ class MongolBankCrawler:
                 raise ValueError("Expected non-empty list in data field")
 
             rates = self._parse_rates(data[0])
-            logger.info(f"Successfully fetched {len(rates)} currencies from {self.BANK_NAME}")
             return rates
 
         except requests.exceptions.Timeout:
@@ -113,7 +91,6 @@ if __name__ == "__main__":
     crawler = MongolBankCrawler(url=url, date=today)
     try:
         rates = crawler.crawl()
-        print(f"Successfully fetched rates for {len(rates)} currencies")
         for currency, detail in rates.items():
             print(f"{currency.upper()}: {detail.noncash.buy}")
     except Exception as e:

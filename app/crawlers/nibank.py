@@ -1,7 +1,3 @@
-"""
-Exchange rate crawler for NIBank (using Playwright).
-"""
-
 import os
 import re
 from typing import Dict
@@ -20,32 +16,15 @@ logger = get_logger(__name__)
 
 
 class NIBankCrawler:
-    """Crawler for fetching exchange rates from NIBank's website."""
-
     BANK_NAME = "NIBank"
     REQUEST_TIMEOUT = 60000
 
     def __init__(self, url: str, date: str):
-        """
-        Initialize the crawler.
-
-        Args:
-            url: Bank website URL
-            date: Date in YYYY-MM-DD format
-        """
         self.url = url
         self.date = date
         self.ssl_verify = os.getenv("SSL_VERIFY", "True").lower() in ("true", "1", "t")
 
     def crawl(self) -> Dict[str, CurrencyDetail]:
-        """
-        Fetch exchange rates from NIBank.
-
-        Returns:
-            Dict mapping currency code -> CurrencyDetail object
-        """
-        logger.info(f"Fetching rates from {self.BANK_NAME}: {self.url}")
-
         try:
             with sync_playwright() as p:
                 browser = p.chromium.launch(headless=True)
@@ -53,14 +32,12 @@ class NIBankCrawler:
 
                 page.goto(self.url, timeout=self.REQUEST_TIMEOUT, wait_until="networkidle")
 
-                # Wait for exchange rate blocks to load
                 page.wait_for_selector(".exchange-block", timeout=self.REQUEST_TIMEOUT)
 
                 rates = self._parse_exchange_blocks(page)
 
                 browser.close()
 
-                logger.info(f"Successfully fetched {len(rates)} currencies from {self.BANK_NAME}")
                 return rates
 
         except TimeoutError:
@@ -74,7 +51,6 @@ class NIBankCrawler:
         rates = {}
 
         try:
-            # Find all exchange blocks
             blocks = page.locator(".exchange-block").all()
 
             for block in blocks:
@@ -85,7 +61,6 @@ class NIBankCrawler:
                     if len(lines) < 6:
                         continue
 
-                    # Extract currency code from first line (e.g., "USD ($)" -> "usd")
                     currency_line = lines[0]
                     currency_match = re.match(r"^([A-Z]{3})", currency_line)
                     if not currency_match:
@@ -93,7 +68,6 @@ class NIBankCrawler:
 
                     currency_code = currency_match.group(1).lower()
 
-                    # Parse rates based on labels
                     cash_buy = None
                     cash_sell = None
                     noncash_buy = None

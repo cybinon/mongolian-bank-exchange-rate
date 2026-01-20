@@ -1,7 +1,3 @@
-"""
-Crawler for XacBank exchange rates.
-"""
-
 import os
 from datetime import datetime, timedelta
 from typing import Dict
@@ -21,33 +17,16 @@ logger = get_logger(__name__)
 
 
 class XacBankCrawler:
-    """Crawler to fetch exchange rates from XacBank API."""
-
     BANK_NAME = "XacBank"
     REQUEST_TIMEOUT = 30
     BASE_API_URL = "https://xacbank.mn/api/currencies"
 
     def __init__(self, url: str, date: str):
-        """
-        Initialize the crawler.
-
-        Args:
-            url: Bank website/API URL
-            date: Date in YYYY-MM-DD format
-        """
         self.url = url
         self.date = date
         self.ssl_verify = os.getenv("SSL_VERIFY", "True").lower() in ("true", "1", "t")
 
     def crawl(self) -> Dict[str, CurrencyDetail]:
-        """
-        Fetch exchange rates from XacBank API.
-
-        Returns:
-            Mapping of currency code -> CurrencyDetail
-        """
-        logger.info(f"Fetching rates from {self.BANK_NAME}: {self.BASE_API_URL}")
-
         try:
             if self.date:
                 target_date = datetime.strptime(self.date, "%Y-%m-%d")
@@ -70,7 +49,6 @@ class XacBankCrawler:
                 data = response.json()
 
             rates = self._parse_rates(data.get("docs", []))
-            logger.info(f"Successfully fetched {len(rates)} currencies from {self.BANK_NAME}")
             return rates
 
         except requests.exceptions.Timeout:
@@ -126,7 +104,6 @@ if __name__ == "__main__":
     crawler = XacBankCrawler(url=url, date="")
     try:
         rates = crawler.crawl()
-        print(f"Successfully fetched rates for {len(rates)} currencies")
         for currency, details in rates.items():
             print(
                 f"{currency.upper()}: Cash Buy={details.cash.buy}, Cash Sell={details.cash.sell}, "

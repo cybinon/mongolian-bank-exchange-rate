@@ -1,7 +1,3 @@
-"""
-Crawler for Golomt Bank exchange rates.
-"""
-
 import datetime
 import os
 from typing import Dict, Optional
@@ -21,33 +17,17 @@ logger = get_logger(__name__)
 
 
 class GolomtBankCrawler:
-    """Crawler to fetch exchange rates from Golomt Bank API."""
-
     BANK_NAME = "GolomtBank"
-    REQUEST_TIMEOUT = 30  # seconds
+    REQUEST_TIMEOUT = 30
 
     def __init__(self, url: str, date: str):
-        """
-        Initialize the crawler.
-
-        Args:
-            url: Bank API URL
-            date: Date in YYYY-MM-DD format
-        """
         self.url = url
         self.date = date
         self.ssl_verify = os.getenv("SSL_VERIFY", "True").lower() in ("true", "1", "t")
 
     def crawl(self) -> Dict[str, CurrencyDetail]:
-        """
-        Fetch exchange rates from Golomt Bank API.
-
-        Returns:
-            Mapping of currency code -> CurrencyDetail
-        """
         date_formatted = self.date.replace("-", "")
         endpoint = f"{self.url}?date={date_formatted}"
-        logger.info(f"Fetching rates from {self.BANK_NAME}: {endpoint}")
 
         try:
             response = requests.get(url=endpoint, verify=self.ssl_verify, timeout=self.REQUEST_TIMEOUT)
@@ -58,7 +38,6 @@ class GolomtBankCrawler:
                 raise ValueError(f"Expected dict with 'result' key, got {type(data)}")
 
             rates = self._parse_rates(data["result"])
-            logger.info(f"Successfully fetched {len(rates)} currencies from {self.BANK_NAME}")
             return rates
 
         except requests.exceptions.Timeout:
@@ -80,7 +59,7 @@ class GolomtBankCrawler:
                 continue
 
             try:
-                # Extract cash and non-cash rates
+
                 cash_buy = currency_data.get("cash_buy", {})
                 cash_sell = currency_data.get("cash_sell", {})
                 non_cash_buy = currency_data.get("non_cash_buy", {})

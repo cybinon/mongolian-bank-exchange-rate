@@ -1,7 +1,3 @@
-"""
-Crawler for Khan Bank exchange rates.
-"""
-
 import datetime
 import os
 from typing import Dict, Optional
@@ -21,32 +17,16 @@ logger = get_logger(__name__)
 
 
 class KhanBankCrawler:
-    """Crawler to fetch exchange rates from Khan Bank API."""
-
     BANK_NAME = "KhanBank"
-    REQUEST_TIMEOUT = 30  # seconds
+    REQUEST_TIMEOUT = 30
 
     def __init__(self, url: str, date: str):
-        """
-        Initialize the crawler.
-
-        Args:
-            url: Bank API URL
-            date: Date in YYYY-MM-DD format
-        """
         self.url = url
         self.date = date
         self.ssl_verify = os.getenv("SSL_VERIFY", "True").lower() in ("true", "1", "t")
 
     def crawl(self) -> Dict[str, CurrencyDetail]:
-        """
-        Fetch exchange rates from Khan Bank API.
-
-        Returns:
-            Mapping of currency code -> CurrencyDetail
-        """
         endpoint = f"{self.url}?date={self.date}"
-        logger.info(f"Fetching rates from {self.BANK_NAME}: {endpoint}")
 
         try:
             response = requests.get(url=endpoint, verify=self.ssl_verify, timeout=self.REQUEST_TIMEOUT)
@@ -57,7 +37,6 @@ class KhanBankCrawler:
                 raise ValueError(f"Expected list response, got {type(data)}")
 
             rates = self._parse_rates(data)
-            logger.info(f"Successfully fetched {len(rates)} currencies from {self.BANK_NAME}")
             return rates
 
         except requests.exceptions.Timeout:
