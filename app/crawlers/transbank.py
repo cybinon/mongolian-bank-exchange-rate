@@ -4,15 +4,12 @@ from typing import Dict
 
 import urllib3
 from dotenv import load_dotenv
-from playwright.sync_api import TimeoutError, sync_playwright
+from playwright.sync_api import sync_playwright
 
 load_dotenv()
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
 from app.models.exchange_rate import CurrencyDetail, Rate
-from app.utils.logger import get_logger
-
-logger = get_logger(__name__)
 
 
 class TransBankCrawler:
@@ -25,104 +22,81 @@ class TransBankCrawler:
         self.ssl_verify = os.getenv("SSL_VERIFY", "True").lower() in ("true", "1", "t")
 
     def crawl(self) -> Dict[str, CurrencyDetail]:
-        try:
-            url_with_date = f"{self.url}?startdate={self.date}" if "?" not in self.url else self.url
+        url_with_date = f"{self.url}?startdate={self.date}" if "?" not in self.url else self.url
 
-            with sync_playwright() as p:
-                browser = p.chromium.launch(headless=True)
-                page = browser.new_page()
+        with sync_playwright() as p:
+            browser = p.chromium.launch(headless=True)
+            page = browser.new_page()
 
-                page.goto(url_with_date, timeout=self.REQUEST_TIMEOUT, wait_until="networkidle")
+            page.goto(url_with_date, timeout=self.REQUEST_TIMEOUT, wait_until="networkidle")
+            page.wait_for_selector("table", timeout=self.REQUEST_TIMEOUT)
 
-                page.wait_for_selector("table", timeout=self.REQUEST_TIMEOUT)
+            next_data_script = page.locator("script#__NEXT_DATA__").first
+            if next_data_script:
+                json_text = next_data_script.inner_text()
+                data = json.loads(json_text)
+                rates = self._parse_next_data(data)
+            else:
+                rates = self._parse_table(page)
 
-                next_data_script = page.locator("script#__NEXT_DATA__").first
-                if next_data_script:
-                    json_text = next_data_script.inner_text()
-                    data = json.loads(json_text)
-                    rates = self._parse_next_data(data)
-                else:
+            browser.close()
 
-                    rates = self._parse_table(page)
-
-                browser.close()
-
-                return rates
-
-        except TimeoutError:
-            logger.error(f"Timeout while fetching from {self.BANK_NAME}")
-            raise
-        except Exception as e:
-            logger.error(f"Error while crawling {self.BANK_NAME}: {e}")
-            raise
+            return rates
 
     def _parse_next_data(self, data: dict) -> Dict[str, CurrencyDetail]:
         rates = {}
 
-        try:
-            rate_data = data.get("props", {}).get("pageProps", {}).get("rateData", {})
+        rate_data = data.get("props", {}).get("pageProps", {}).get("rateData", {})
 
-            for date_key, currencies in rate_data.items():
-                for currency_code, currency_data in currencies.items():
-                    if currency_code == "NAME":
-                        continue
+        for date_key, currencies in rate_data.items():
+            for currency_code, currency_data in currencies.items():
+                if currency_code == "NAME":
+                    continue
 
-                    code = currency_code.strip().lower()
+                code = currency_code.strip().lower()
 
-                    cash_data = currency_data.get("2", {})
-                    cash_buy = self._parse_float(cash_data.get("BUY_RATE"))
-                    cash_sell = self._parse_float(cash_data.get("SELL_RATE"))
+                cash_data = currency_data.get("2", {})
+                cash_buy = self._parse_float(cash_data.get("BUY_RATE"))
+                cash_sell = self._parse_float(cash_data.get("SELL_RATE"))
 
-                    noncash_data = currency_data.get("3", {})
-                    noncash_buy = self._parse_float(noncash_data.get("BUY_RATE"))
-                    noncash_sell = self._parse_float(noncash_data.get("SELL_RATE"))
+                noncash_data = currency_data.get("3", {})
+                noncash_buy = self._parse_float(noncash_data.get("BUY_RATE"))
+                noncash_sell = self._parse_float(noncash_data.get("SELL_RATE"))
 
-                    rates[code] = CurrencyDetail(
-                        cash=Rate(buy=cash_buy, sell=cash_sell), noncash=Rate(buy=noncash_buy, sell=noncash_sell)
-                    )
-
-        except Exception as e:
-            logger.error(f"Error parsing Next.js data: {e}")
-            raise
+                rates[code] = CurrencyDetail(
+                    cash=Rate(buy=cash_buy, sell=cash_sell), noncash=Rate(buy=noncash_buy, sell=noncash_sell)
+                )
 
         return rates
 
     def _parse_table(self, page) -> Dict[str, CurrencyDetail]:
         rates = {}
 
-        try:
-            table = page.locator("table").first
-            rows = table.locator("tbody tr").all()
+        table = page.locator("table").first
+        rows = table.locator("tbody tr").all()
 
-            for row in rows:
-                cells = row.locator("td").all()
-                if len(cells) < 7:
+        for row in rows:
+            cells = row.locator("td").all()
+            if len(cells) < 7:
+                continue
+
+            try:
+                currency_text = cells[0].inner_text().strip()
+                currency_code = currency_text.split()[0].lower()
+
+                if not currency_code or len(currency_code) > 10:
                     continue
 
-                try:
+                cash_buy = self._parse_float(cells[3].inner_text())
+                cash_sell = self._parse_float(cells[4].inner_text())
+                noncash_buy = self._parse_float(cells[5].inner_text())
+                noncash_sell = self._parse_float(cells[6].inner_text())
 
-                    currency_text = cells[0].inner_text().strip()
-
-                    currency_code = currency_text.split()[0].lower()
-
-                    if not currency_code or len(currency_code) > 10:
-                        continue
-
-                    cash_buy = self._parse_float(cells[3].inner_text())
-                    cash_sell = self._parse_float(cells[4].inner_text())
-                    noncash_buy = self._parse_float(cells[5].inner_text())
-                    noncash_sell = self._parse_float(cells[6].inner_text())
-
-                    rates[currency_code] = CurrencyDetail(
-                        cash=Rate(buy=cash_buy, sell=cash_sell), noncash=Rate(buy=noncash_buy, sell=noncash_sell)
-                    )
-                except (ValueError, IndexError) as e:
-                    logger.warning(f"Error parsing row: {e}")
-                    continue
-
-        except Exception as e:
-            logger.error(f"Error parsing table: {e}")
-            raise
+                rates[currency_code] = CurrencyDetail(
+                    cash=Rate(buy=cash_buy, sell=cash_sell), noncash=Rate(buy=noncash_buy, sell=noncash_sell)
+                )
+            except (ValueError, IndexError):
+                continue
 
         return rates
 

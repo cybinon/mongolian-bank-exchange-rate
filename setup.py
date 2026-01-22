@@ -1,6 +1,14 @@
-import os
-
 from setuptools import find_packages, setup
+
+from app.__version__ import (
+    __author__,
+    __author_email__,
+    __description__,
+    __donation__,
+    __title__,
+    __url__,
+    __version__,
+)
 
 
 def read_file(filename):
@@ -9,18 +17,19 @@ def read_file(filename):
 
 
 setup(
-    name="mongolian-bank-exchange-rate",
-    version="1.0.3",
-    author="btseee",
-    author_email="your.email@example.com",
-    description="Mongolian Bank Exchange Rate Crawler - 13 банкны валютын ханш цуглуулагч",
+    name=__title__,
+    version=__version__,
+    author=__author__,
+    author_email=__author_email__,
+    description=__description__,
     long_description=read_file("README.md"),
     long_description_content_type="text/markdown",
-    url="https://github.com/btseee/mongolian-bank-exchange-rate",
+    url=__url__,
     project_urls={
-        "Bug Reports": "https://github.com/btseee/mongolian-bank-exchange-rate/issues",
-        "Source": "https://github.com/btseee/mongolian-bank-exchange-rate",
-        "Documentation": "https://github.com/btseee/mongolian-bank-exchange-rate#readme",
+        "Bug Reports": f"{__url__}/issues",
+        "Source": __url__,
+        "Documentation": f"{__url__}#readme",
+        "Funding": __donation__,
     },
     packages=find_packages(exclude=["tests", "docs"]),
     classifiers=[

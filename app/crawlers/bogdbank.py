@@ -4,16 +4,12 @@ from typing import Dict, Optional
 
 import urllib3
 from dotenv import load_dotenv
-from playwright.sync_api import TimeoutError as PlaywrightTimeoutError
 from playwright.sync_api import sync_playwright
 
 load_dotenv()
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
 from app.models.exchange_rate import CurrencyDetail, Rate
-from app.utils.logger import get_logger
-
-logger = get_logger(__name__)
 
 
 class BogdBankCrawler:
@@ -26,34 +22,24 @@ class BogdBankCrawler:
         self.ssl_verify = os.getenv("SSL_VERIFY", "True").lower() in ("true", "1", "t")
 
     def crawl(self) -> Dict[str, CurrencyDetail]:
-        try:
-            with sync_playwright() as p:
-                browser = p.chromium.launch(headless=True)
-                context = browser.new_context(ignore_https_errors=not self.ssl_verify)
-                page = context.new_page()
+        with sync_playwright() as p:
+            browser = p.chromium.launch(headless=True)
+            context = browser.new_context(ignore_https_errors=not self.ssl_verify)
+            page = context.new_page()
 
-                url_with_date = f"{self.url}?date={self.date}" if self.date else self.url
+            url_with_date = f"{self.url}?date={self.date}" if self.date else self.url
 
-                page.goto(url_with_date, timeout=self.REQUEST_TIMEOUT, wait_until="networkidle")
-                page.wait_for_selector("table", timeout=self.REQUEST_TIMEOUT)
-                time.sleep(2)
+            page.goto(url_with_date, timeout=self.REQUEST_TIMEOUT, wait_until="networkidle")
+            page.wait_for_selector("table", timeout=self.REQUEST_TIMEOUT)
+            time.sleep(2)
 
-                rates = self._parse_rates(page)
+            rates = self._parse_rates(page)
+            browser.close()
 
-                browser.close()
-
-            return rates
-
-        except PlaywrightTimeoutError:
-            logger.error(f"Request timeout while fetching from {self.BANK_NAME}")
-            raise
-        except Exception as e:
-            logger.error(f"Failed to fetch rates from {self.BANK_NAME}: {e}")
-            raise
+        return rates
 
     def _parse_rates(self, page) -> Dict[str, CurrencyDetail]:
         rates = {}
-
         rows = page.locator("table tbody tr").all()
 
         for row in rows:
@@ -78,8 +64,7 @@ class BogdBankCrawler:
                             buy=noncash_buy if noncash_buy else 0.0, sell=noncash_sell if noncash_sell else 0.0
                         ),
                     )
-                except Exception as e:
-                    logger.debug(f"Skipping row due to parsing error: {e}")
+                except Exception:
                     continue
 
         return rates
@@ -92,51 +77,3 @@ class BogdBankCrawler:
             return float(cleaned)
         except ValueError:
             return None
-
-
-if __name__ == "__main__":
-    import sys
-
-    sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "../..")))
-
-    from datetime import date, timedelta
-
-    url = os.getenv("BOGDBANK_URI", "https://www.bogdbank.com/exchange")
-
-    today = date.today().isoformat()
-    print(f"\n{'='*60}")
-    print(f"Testing BogdBank crawler for today: {today}")
-    print(f"{'='*60}\n")
-
-    crawler = BogdBankCrawler(url=url, date=today)
-    try:
-        rates = crawler.crawl()
-        if len(rates) == 0:
-            print(f"BogdBank has no rates available for {today}")
-        else:
-            for currency, details in list(rates.items())[:5]:
-                print(
-                    f"{currency.upper()}: Cash Buy={details.cash.buy}, Cash Sell={details.cash.sell}, "
-                    f"Non-Cash Buy={details.noncash.buy}, Non-Cash Sell={details.noncash.sell}"
-                )
-    except Exception as e:
-        print(f"Error: {e}")
-
-    yesterday = (date.today() - timedelta(days=1)).isoformat()
-    print(f"\n{'='*60}")
-    print(f"Testing BogdBank crawler for yesterday: {yesterday}")
-    print(f"{'='*60}\n")
-
-    crawler2 = BogdBankCrawler(url=url, date=yesterday)
-    try:
-        rates2 = crawler2.crawl()
-        if len(rates2) == 0:
-            print(f"BogdBank has no rates available for {yesterday}")
-        else:
-            for currency, details in list(rates2.items())[:5]:
-                print(
-                    f"{currency.upper()}: Cash Buy={details.cash.buy}, Cash Sell={details.cash.sell}, "
-                    f"Non-Cash Buy={details.noncash.buy}, Non-Cash Sell={details.noncash.sell}"
-                )
-    except Exception as e:
-        print(f"Error: {e}")

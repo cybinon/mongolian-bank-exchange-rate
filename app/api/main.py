@@ -1,70 +1,113 @@
-"""
-Монгол банкны валютын ханшийн FastAPI апликейшн.
-"""
-
 import datetime
-from typing import List, Optional
+from typing import List
 
 from fastapi import Depends, FastAPI, HTTPException, Query
-from pydantic import BaseModel
+from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy.orm import Session
 
+from app.__version__ import __author__, __donation__, __license__, __url__, __version__
 from app.db import repository
 from app.db.database import get_db, init_db
-from app.services.scraper_service import ScraperService
+from app.models.exchange_rate import CurrencyRateResponse
+from app.utils.logger import get_logger
+
+logger = get_logger("api")
+
+SUPPORTED_BANKS = [
+    "ArigBank",
+    "BogdBank",
+    "CapitronBank",
+    "CKBank",
+    "GolomtBank",
+    "KhanBank",
+    "MBank",
+    "MongolBank",
+    "NIBank",
+    "StateBank",
+    "TDBM",
+    "TransBank",
+    "XacBank",
+]
 
 app = FastAPI(
-    title="Mongolian Bank Exchange Rates API",
-    description="API for fetching exchange rates from Mongolian banks",
-    version="1.0.0",
+    title="Монголын Банкуудын Валютын Ханш API",
+    description="""Монголын 13 банкны валютын ханшийг авах нийтийн API.
+
+## Онцлогууд
+- 📊 Монголын 13 томоохон банкны валютын ханш
+- 🔄 Өдөр бүр 09:00 цагт (UTC+8) шинэчлэгдэнэ
+- 📅 Өмнөх өдрүүдийн ханшийг хайх боломжтой
+- 🏦 Банкаар шүүж хайх
+
+## Дэмжигдсэн Банкууд
+- Ариг Банк, Богд Банк, Капитрон Банк, Чингис Хаан Банк, Голомт Банк
+- Хаан Банк, М Банк, Монгол Банк, Үндэсний Хөрөнгө Оруулалтын Банк, Төрийн Банк
+- Худалдаа Хөгжлийн Банк, Транс Банк, Хас Банк
+
+## Хязгаарлалт
+Энэ бол үнэгүй нийтийн API. Хүсэлтийн тоог хэт ихэсгэхгүй байхыг хүсье.
+""",
+    version=__version__,
+    contact={"name": __author__, "url": __url__} if __author__ else None,
+    license_info={"name": __license__, "url": "https://opensource.org/licenses/MIT"},
+    openapi_tags=[
+        {"name": "Мэдээлэл", "description": "API-ийн мэдээлэл болон эрүүл мэндийн шалгалт"},
+        {"name": "Валютын Ханш", "description": "Валютын ханшийн мэдээлэл авах"},
+    ],
 )
 
-
-class CurrencyRateResponse(BaseModel):
-    """Валютын ханшийн хариу загвар."""
-
-    id: int
-    bank_name: str
-    date: datetime.date
-    rates: dict
-    timestamp: datetime.datetime
-
-    class Config:
-        from_attributes = True
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["GET"],
+    allow_headers=["*"],
+)
 
 
 @app.on_event("startup")
 def on_startup():
-    """Апликейшн эхлэхэд өгөгдлийн санг эхлүүлэх."""
     init_db()
+    logger.info(f"API started - version {__version__}")
 
 
-@app.get("/", tags=["Root"])
+@app.get("/", tags=["Мэдээлэл"])
 def root():
-    """Үндсэн эндпойнт - API-ийн мэдээлэл."""
+    """API-ийн мэдээлэл болон боломжит эцсийн цэгүүд."""
     return {
-        "message": "Mongolian Bank Exchange Rates API",
-        "version": "1.0.0",
+        "name": "Монголын Банкуудын Валютын Ханш API",
+        "version": __version__,
+        "description": "Монголын 13 банкны валютын ханшийг авах нийтийн API",
+        "documentation": "/docs",
+        "github": __url__,
+        "donation": __donation__,
+        "data_update": "Өдөр бүр 09:00 цагт (UTC+8)",
+        "supported_banks": SUPPORTED_BANKS,
         "endpoints": {
-            "/rates": "Get all rates from database",
-            "/rates/latest": "Get latest rates for all banks",
-            "/rates/bank/{bank_name}": "Get rates for specific bank from database",
-            "/rates/date/{date}": "Get rates for specific date from database",
-            "/rates/bank/{bank_name}/date/{date}": "Get rate for specific bank and date",
-            "/scrape/all": "Scrape all banks and return fresh data",
-            "/scrape/bank/{bank_name}": "Scrape specific bank and return fresh data",
+            "/rates": "Бүх ханшийг авах (хуудаслалттай)",
+            "/rates/latest": "Бүх банкны хамгийн сүүлийн ханш",
+            "/rates/bank/{bank_name}": "Тодорхой банкны ханш",
+            "/rates/date/{date}": "Тодорхой өдрийн ханш (YYYY-MM-DD)",
+            "/rates/bank/{bank_name}/date/{date}": "Тодорхой банк, өдрийн ханш",
+            "/health": "Эрүүл мэндийн шалгалт",
         },
     }
 
 
-@app.get("/rates", response_model=List[CurrencyRateResponse], tags=["Database"])
+@app.get("/health", tags=["Мэдээлэл"])
+def health_check():
+    """Эрүүл мэндийн шалгалтын эцсийн цэг."""
+    return {"status": "healthy", "version": __version__}
+
+
+@app.get("/rates", response_model=List[CurrencyRateResponse], tags=["Валютын Ханш"])
 def get_all_rates(
     skip: int = Query(0, ge=0, description="Алгасах бичлэгийн тоо"),
     limit: int = Query(100, ge=1, le=1000, description="Буцаах бичлэгийн дээд хязгаар"),
     db: Session = Depends(get_db),
 ):
     """
-    Өгөгдлийн сангаас бүх валютын ханшийг хуудаслалттайгаар авах.
+    Бүх валютын ханшийг хуудаслалттай авах.
 
     - **skip**: Алгасах бичлэгийн тоо (хуудаслалтад)
     - **limit**: Буцаах бичлэгийн дээд хязгаар (хамгийн ихдээ 1000)
@@ -73,17 +116,18 @@ def get_all_rates(
     return rates
 
 
-@app.get("/rates/latest", response_model=List[CurrencyRateResponse], tags=["Database"])
+@app.get("/rates/latest", response_model=List[CurrencyRateResponse], tags=["Валютын Ханш"])
 def get_latest_rates(db: Session = Depends(get_db)):
     """
     Бүх банкны хамгийн сүүлийн валютын ханшийг авах.
-    Банк бүрийн хамгийн сүүлийн ханшийг буцаана.
+
+    Банк бүрийн хамгийн сүүлийн бичлэгийг буцаана.
     """
     rates = repository.get_latest_rates(db)
     return rates
 
 
-@app.get("/rates/bank/{bank_name}", response_model=List[CurrencyRateResponse], tags=["Database"])
+@app.get("/rates/bank/{bank_name}", response_model=List[CurrencyRateResponse], tags=["Валютын Ханш"])
 def get_rates_by_bank(
     bank_name: str,
     skip: int = Query(0, ge=0, description="Алгасах бичлэгийн тоо"),
@@ -91,19 +135,19 @@ def get_rates_by_bank(
     db: Session = Depends(get_db),
 ):
     """
-    Өгөгдлийн сангаас тодорхой банкны валютын ханшийг авах.
+    Тодорхой банкны валютын ханшийг авах.
 
-    - **bank_name**: Банкны нэр (ж: KhanBank, GolomtBank, ArigBank)
+    - **bank_name**: Банкны нэр (жишээ нь: KhanBank, GolomtBank, ArigBank)
     - **skip**: Алгасах бичлэгийн тоо (хуудаслалтад)
     - **limit**: Буцаах бичлэгийн дээд хязгаар (хамгийн ихдээ 1000)
     """
     rates = repository.get_rates_by_bank(db, bank_name, skip=skip, limit=limit)
     if not rates:
-        raise HTTPException(status_code=404, detail=f"No rates found for bank: {bank_name}")
+        raise HTTPException(status_code=404, detail=f"'{bank_name}' банкны ханш олдсонгүй")
     return rates
 
 
-@app.get("/rates/date/{date}", response_model=List[CurrencyRateResponse], tags=["Database"])
+@app.get("/rates/date/{date}", response_model=List[CurrencyRateResponse], tags=["Валютын Ханш"])
 def get_rates_by_date(
     date: str,
     skip: int = Query(0, ge=0, description="Алгасах бичлэгийн тоо"),
@@ -111,7 +155,7 @@ def get_rates_by_date(
     db: Session = Depends(get_db),
 ):
     """
-    Өгөгдлийн сангаас тодорхой өдрийн валютын ханшийг авах.
+    Тодорхой өдрийн валютын ханшийг авах.
 
     - **date**: Огноо YYYY-MM-DD форматаар
     - **skip**: Алгасах бичлэгийн тоо (хуудаслалтад)
@@ -120,79 +164,28 @@ def get_rates_by_date(
     try:
         date_obj = datetime.date.fromisoformat(date)
     except ValueError:
-        raise HTTPException(status_code=400, detail="Invalid date format. Use YYYY-MM-DD")
+        raise HTTPException(status_code=400, detail="Огнооны формат буруу. YYYY-MM-DD ашиглана уу")
 
     rates = repository.get_rates_by_date(db, date_obj, skip=skip, limit=limit)
     if not rates:
-        raise HTTPException(status_code=404, detail=f"No rates found for date: {date}")
+        raise HTTPException(status_code=404, detail=f"'{date}' өдрийн ханш олдсонгүй")
     return rates
 
 
-@app.get("/rates/bank/{bank_name}/date/{date}", response_model=CurrencyRateResponse, tags=["Database"])
+@app.get("/rates/bank/{bank_name}/date/{date}", response_model=CurrencyRateResponse, tags=["Валютын Ханш"])
 def get_rate_by_bank_and_date(bank_name: str, date: str, db: Session = Depends(get_db)):
     """
-    Өгөгдлийн сангаас тодорхой банк болон огнооны валютын ханшийг авах.
+    Тодорхой банк, өдрийн валютын ханшийг авах.
 
-    - **bank_name**: Банкны нэр (ж: KhanBank, GolomtBank, ArigBank)
+    - **bank_name**: Банкны нэр (жишээ нь: KhanBank, GolomtBank, ArigBank)
     - **date**: Огноо YYYY-MM-DD форматаар
     """
     try:
         date_obj = datetime.date.fromisoformat(date)
     except ValueError:
-        raise HTTPException(status_code=400, detail="Invalid date format. Use YYYY-MM-DD")
+        raise HTTPException(status_code=400, detail="Огнооны формат буруу. YYYY-MM-DD ашиглана уу")
 
     rate = repository.get_rates_by_bank_and_date(db, bank_name, date_obj)
     if not rate:
-        raise HTTPException(status_code=404, detail=f"No rate found for bank: {bank_name} on date: {date}")
+        raise HTTPException(status_code=404, detail=f"'{bank_name}' банкны '{date}' өдрийн ханш олдсонгүй")
     return rate
-
-
-@app.post("/scrape/all", tags=["Scraping"])
-def scrape_all_banks(date: Optional[str] = Query(None, description="Огноо YYYY-MM-DD форматаар (өнөөдөр байна)")):
-    """
-    Бүх банкнаас валютын ханшийг татаж өгөгдлийн санд хадгалах.
-    Татах үйлдлийн хураангуйг буцаана.
-
-    - **date**: Сонголттой огноо параметр (өнөөдөр байна)
-    """
-    scraper = ScraperService(date=date)
-    scraper.run_crawlers()
-    return {"message": "Scraping completed", "date": scraper.date, "status": "success"}
-
-
-@app.get("/scrape/bank/{bank_name}", tags=["Scraping"])
-def scrape_bank(
-    bank_name: str, date: Optional[str] = Query(None, description="Огноо YYYY-MM-DD форматаар (өнөөдөр байна)")
-):
-    """
-    Тодорхой банкнаас валютын ханшийг татаж шинэ өгөгдлийг буцаах.
-    Өгөгдлийн санд хадгалахгүй - шууд мэдээлэл буцаана.
-
-    Дэмжигдсэн банкууд:
-    - KhanBank
-    - GolomtBank, Golomt
-    - MongolBank
-    - TDBM
-    - XacBank
-    - ArigBank
-    - BogdBank
-    - StateBank
-    - CapitronBank
-    - TransBank
-    - NIBank
-    - MBank
-    - CKBank
-
-    - **bank_name**: Татах банкны нэр
-    - **date**: Сонголттой огноо параметр (өнөөдөр байна)
-    """
-    scraper = ScraperService(date=date)
-    rates = scraper.scrape_bank(bank_name)
-
-    if rates is None:
-        raise HTTPException(
-            status_code=404,
-            detail=f"Bank not found: {bank_name}. Check /scrape/bank/{{bank_name}} endpoint description for supported banks.",
-        )
-
-    return {"bank": bank_name, "date": scraper.date, "rates": rates}

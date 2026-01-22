@@ -1,8 +1,3 @@
-"""
-Configuration module for crawlers.
-All values are read from environment variables.
-"""
-
 import os
 from typing import Optional
 
@@ -12,17 +7,11 @@ load_dotenv()
 
 
 class CrawlerConfig:
-    """Configuration holder for the crawler service."""
-
     DATABASE_URL: str = os.getenv("DATABASE_URL", "sqlite:///./exchange_rates.db")
-
-    CRON_SCHEDULE: str = os.getenv("CRON_SCHEDULE", "0 1 * * *")
-
+    CRON_SCHEDULE: str = os.getenv("CRON_SCHEDULE", "0 9 * * *")
     SSL_VERIFY: bool = os.getenv("SSL_VERIFY", "False").lower() in ("true", "1", "t", "yes")
-
     REQUEST_TIMEOUT: int = int(os.getenv("REQUEST_TIMEOUT", "30"))
     PLAYWRIGHT_TIMEOUT: int = int(os.getenv("PLAYWRIGHT_TIMEOUT", "60000"))
-
     ENABLE_PARALLEL: bool = os.getenv("ENABLE_PARALLEL", "true").lower() in ("true", "1", "t", "yes")
     MAX_WORKERS: int = int(os.getenv("MAX_WORKERS", "8"))
     PLAYWRIGHT_MAX_WORKERS: int = int(os.getenv("PLAYWRIGHT_MAX_WORKERS", "3"))
@@ -48,8 +37,7 @@ class CrawlerConfig:
 
     @classmethod
     def get_bank_uri(cls, bank_name: str) -> Optional[str]:
-        """Get URI by bank name."""
-        uri_map = {
+        bank_uri_mapping = {
             "khanbank": cls.KHANBANK_URI,
             "tdbm": cls.TDBM_URI,
             "golomt": cls.GOLOMT_URI,
@@ -64,7 +52,7 @@ class CrawlerConfig:
             "nibank": cls.NIBANK_URI,
             "mbank": cls.MBANK_URI,
         }
-        return uri_map.get(bank_name.lower())
+        return bank_uri_mapping.get(bank_name.lower())
 
 
 config = CrawlerConfig()

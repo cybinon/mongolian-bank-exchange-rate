@@ -9,9 +9,6 @@ load_dotenv()
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
 from app.models.exchange_rate import CurrencyDetail, Rate
-from app.utils.logger import get_logger
-
-logger = get_logger(__name__)
 
 
 class StateBankCrawler:
@@ -24,26 +21,14 @@ class StateBankCrawler:
         self.ssl_verify = os.getenv("SSL_VERIFY", "True").lower() in ("true", "1", "t")
 
     def crawl(self) -> Dict[str, CurrencyDetail]:
-        try:
-            response = requests.get(url=self.url, verify=self.ssl_verify, timeout=self.REQUEST_TIMEOUT)
-            response.raise_for_status()
-            data = response.json()
+        response = requests.get(url=self.url, verify=self.ssl_verify, timeout=self.REQUEST_TIMEOUT)
+        response.raise_for_status()
+        data = response.json()
 
-            if not isinstance(data, list):
-                raise ValueError(f"Expected list, got {type(data)}")
+        if not isinstance(data, list):
+            raise ValueError(f"Expected list, got {type(data)}")
 
-            rates = self._parse_rates(data)
-            return rates
-
-        except requests.exceptions.Timeout:
-            logger.error(f"Request timeout while fetching from {self.BANK_NAME}")
-            raise
-        except requests.exceptions.RequestException as e:
-            logger.error(f"Request failed for {self.BANK_NAME}: {e}")
-            raise
-        except (ValueError, KeyError) as e:
-            logger.error(f"Failed to parse response from {self.BANK_NAME}: {e}")
-            raise
+        return self._parse_rates(data)
 
     def _parse_rates(self, data: list) -> Dict[str, CurrencyDetail]:
         rates = {}
@@ -69,17 +54,3 @@ class StateBankCrawler:
                 )
 
         return rates
-
-
-if __name__ == "__main__":
-    url = os.getenv("STATEBANK_URI", "https://www.statebank.mn/back/api/fetchrate")
-    crawler = StateBankCrawler(url=url, date="")
-    try:
-        rates = crawler.crawl()
-        for currency, details in rates.items():
-            print(
-                f"{currency.upper()}: Cash Buy={details.cash.buy}, Cash Sell={details.cash.sell}, "
-                f"Non-Cash Buy={details.noncash.buy}, Non-Cash Sell={details.noncash.sell}"
-            )
-    except Exception as e:
-        print(f"Error: {e}")

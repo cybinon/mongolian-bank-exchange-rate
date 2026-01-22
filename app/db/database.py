@@ -1,8 +1,3 @@
-"""
-Database setup module.
-Supports SQLite, PostgreSQL, MySQL and any SQLAlchemy-compatible databases.
-"""
-
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 
@@ -16,12 +11,10 @@ SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 
 
 def init_db():
-    """Initialize the database and create all tables."""
     Base.metadata.create_all(bind=engine)
 
 
 def get_db():
-    """FastAPI dependency to yield a DB session."""
     db = SessionLocal()
     try:
         yield db

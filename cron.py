@@ -1,10 +1,4 @@
-"""
-Scheduler program to collect exchange rates from all banks on a schedule.
-The schedule is controlled by the CRON_SCHEDULE environment variable.
-"""
-
 import time
-from datetime import datetime
 
 import schedule
 
@@ -13,88 +7,49 @@ from app.db.database import init_db
 from app.services.scraper_service import ScraperService
 from app.utils.logger import get_logger
 
-logger = get_logger(__name__)
+logger = get_logger("cron")
 
 
 def job():
-    """Run the scraping job once."""
-    logger.info("=" * 60)
-    logger.info(f"Starting scheduled crawl job at {datetime.now()}")
-    logger.info("=" * 60)
-
+    logger.info("Starting scheduled crawl job")
     try:
         scraper = ScraperService()
         scraper.run_crawlers()
-        logger.info("Scheduled crawl job completed successfully")
+        logger.info("Crawl job completed successfully")
     except Exception as e:
-        logger.error(f"Scheduled crawl job failed: {e}", exc_info=True)
-
-    logger.info("=" * 60)
+        logger.exception(f"Crawl job failed: {e}")
 
 
 def parse_cron_schedule(cron_string: str) -> dict:
-    """
-    Parse a cron schedule string into simple schedule parameters.
-
-    Format: minute hour day month day_of_week
-    Example: "0 1 * * *" means every day at 01:00.
-
-    Args:
-        cron_string: Cron expression string
-
-    Returns:
-        Dict with schedule parameters
-    """
     parts = cron_string.split()
     if len(parts) != 5:
-        logger.warning(f"Invalid cron format: {cron_string}. Using default: daily at 01:00")
-        return {"time": "01:00"}
+        return {"type": "daily", "time": "01:00"}
 
     minute, hour, day, month, day_of_week = parts
 
     if day == "*" and month == "*" and day_of_week == "*":
-
         time_str = f"{hour.zfill(2)}:{minute.zfill(2)}"
         return {"type": "daily", "time": time_str}
-    else:
-        logger.warning(f"Complex cron schedule not fully supported: {cron_string}")
-        logger.warning("Using default: daily at 01:00")
-        return {"type": "daily", "time": "01:00"}
+    return {"type": "daily", "time": "01:00"}
 
 
 def main():
-    """Entry point to start the scheduler."""
-    logger.info("=" * 60)
-    logger.info("Starting Mongolian Bank Exchange Rate Crawler Scheduler")
-    logger.info("=" * 60)
-    logger.info(f"Cron Schedule: {config.CRON_SCHEDULE}")
-    logger.info("Initializing database (creating tables if missing)...")
-    try:
-        init_db()
-        logger.info("Database initialized.")
-    except Exception as e:
-        logger.error(f"Database initialization failed: {e}", exc_info=True)
+    init_db()
+    logger.info("Database initialized")
 
     schedule_params = parse_cron_schedule(config.CRON_SCHEDULE)
 
     if schedule_params["type"] == "daily":
         schedule.every().day.at(schedule_params["time"]).do(job)
-    logger.info(f"Scheduled to run daily at {schedule_params['time']}")
+        logger.info(f"Scheduled daily job at {schedule_params['time']}")
 
-    logger.info("Scheduler started. Press Ctrl+C to stop.")
-    logger.info("=" * 60)
-
-    logger.info("Running initial crawl on startup...")
+    logger.info("Running initial crawl job")
     job()
 
-    try:
-        while True:
-            schedule.run_pending()
-            time.sleep(60)
-    except KeyboardInterrupt:
-        logger.info("Scheduler stopped by user")
-    except Exception as e:
-        logger.error(f"Scheduler error: {e}", exc_info=True)
+    logger.info("Starting scheduler loop")
+    while True:
+        schedule.run_pending()
+        time.sleep(60)
 
 
 if __name__ == "__main__":

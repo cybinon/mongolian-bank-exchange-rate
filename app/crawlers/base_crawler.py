@@ -11,7 +11,7 @@ from app.utils.logger import get_logger
 load_dotenv()
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
-logger = get_logger(__name__)
+logger = get_logger("crawler")
 
 
 class BaseCrawler(ABC):
@@ -44,13 +44,3 @@ class BaseCrawler(ABC):
             return float(cleaned)
         except (ValueError, TypeError, AttributeError):
             return None
-
-    def _log_success(self, rates: Dict[str, CurrencyDetail]):
-        pass
-
-    def _log_error(self, error: Exception, context: str = ""):
-        error_msg = f"Error in {self.BANK_NAME}"
-        if context:
-            error_msg += f" ({context})"
-        error_msg += f": {error}"
-        logger.error(error_msg)

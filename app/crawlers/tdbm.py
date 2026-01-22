@@ -12,9 +12,6 @@ urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
 from app.config import config
 from app.models.exchange_rate import CurrencyDetail, Rate
-from app.utils.logger import get_logger
-
-logger = get_logger(__name__)
 
 
 class TDBMCrawler:
@@ -28,49 +25,39 @@ class TDBMCrawler:
         self.request_timeout = config.PLAYWRIGHT_TIMEOUT
 
     def crawl(self) -> Dict[str, CurrencyDetail]:
-        try:
-            with sync_playwright() as p:
-                browser = p.chromium.launch(headless=True)
-                context = browser.new_context(ignore_https_errors=not self.ssl_verify)
-                context.set_default_timeout(self.request_timeout)
-                page = context.new_page()
+        with sync_playwright() as p:
+            browser = p.chromium.launch(headless=True)
+            context = browser.new_context(ignore_https_errors=not self.ssl_verify)
+            context.set_default_timeout(self.request_timeout)
+            page = context.new_page()
 
-                self._navigate_with_retries(page)
+            self._navigate_with_retries(page)
 
-                date_inputs = page.locator("input[type=date]").all()
-                if date_inputs:
+            date_inputs = page.locator("input[type=date]").all()
+            if date_inputs:
+                today = datetime.now().strftime("%Y-%m-%d")
+                date_inputs[0].fill(today)
 
-                    today = datetime.now().strftime("%Y-%m-%d")
-                    date_inputs[0].fill(today)
+                buttons = page.locator("form button, form input[type=submit]").all()
+                if buttons:
+                    buttons[0].click()
+                    page.wait_for_selector("table.table-hover", state="visible", timeout=self.request_timeout)
 
-                    buttons = page.locator("form button, form input[type=submit]").all()
+                rates = self._parse_rates(page)
+
+                if not rates:
+                    yesterday = (datetime.now() - timedelta(days=1)).strftime("%Y-%m-%d")
+                    date_inputs[0].fill(yesterday)
                     if buttons:
                         buttons[0].click()
                         page.wait_for_selector("table.table-hover", state="visible", timeout=self.request_timeout)
-
                     rates = self._parse_rates(page)
+            else:
+                rates = self._parse_rates(page)
 
-                    if not rates:
-                        logger.info(f"{self.BANK_NAME} has no data for today, trying yesterday")
-                        yesterday = (datetime.now() - timedelta(days=1)).strftime("%Y-%m-%d")
-                        date_inputs[0].fill(yesterday)
-                        if buttons:
-                            buttons[0].click()
-                            page.wait_for_selector("table.table-hover", state="visible", timeout=self.request_timeout)
-                        rates = self._parse_rates(page)
-                else:
-                    rates = self._parse_rates(page)
+            browser.close()
 
-                browser.close()
-
-            return rates
-
-        except PlaywrightTimeoutError:
-            logger.error(f"Request timeout while fetching from {self.BANK_NAME}")
-            raise
-        except Exception as e:
-            logger.error(f"Failed to fetch rates from {self.BANK_NAME}: {e}")
-            raise
+        return rates
 
     def _parse_rates(self, page) -> Dict[str, CurrencyDetail]:
         rates = {}
@@ -98,8 +85,7 @@ class TDBMCrawler:
                             buy=noncash_buy if noncash_buy else 0.0, sell=noncash_sell if noncash_sell else 0.0
                         ),
                     )
-                except Exception as e:
-                    logger.debug(f"Skipping row due to parsing error: {e}")
+                except Exception:
                     continue
 
         return rates
@@ -119,7 +105,6 @@ class TDBMCrawler:
         while attempts < 2:
             try:
                 wait_until = "domcontentloaded" if attempts == 0 else "load"
-                logger.debug(f"Navigating to {self.url} (attempt {attempts+1}, wait_until={wait_until})")
                 page.goto(self.url, timeout=self.request_timeout, wait_until=wait_until)
                 page.wait_for_selector("table.table-hover", timeout=self.request_timeout)
                 return
@@ -131,20 +116,3 @@ class TDBMCrawler:
                 except Exception:
                     pass
         raise last_err if last_err else PlaywrightTimeoutError("Navigation timeout")
-
-
-if __name__ == "__main__":
-    url = os.getenv("TDBM_URI", "https://www.tdbm.mn/en/exchange")
-    crawler = TDBMCrawler(url=url, date="")
-    try:
-        rates = crawler.crawl()
-        if len(rates) == 0:
-            print("TDBM has no rates available")
-        else:
-            for currency, details in rates.items():
-                print(
-                    f"{currency.upper()}: Cash Buy={details.cash.buy}, Cash Sell={details.cash.sell}, "
-                    f"Non-Cash Buy={details.noncash.buy}, Non-Cash Sell={details.noncash.sell}"
-                )
-    except Exception as e:
-        print(f"Error: {e}")

@@ -9,9 +9,6 @@ load_dotenv()
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
 from app.models.exchange_rate import CurrencyDetail, Rate
-from app.utils.logger import get_logger
-
-logger = get_logger(__name__)
 
 
 class CapitronBankCrawler:
@@ -25,26 +22,14 @@ class CapitronBankCrawler:
         self.ssl_verify = os.getenv("SSL_VERIFY", "True").lower() in ("true", "1", "t")
 
     def crawl(self) -> Dict[str, CurrencyDetail]:
-        try:
-            response = requests.get(url=self.API_URL, verify=self.ssl_verify, timeout=self.REQUEST_TIMEOUT)
-            response.raise_for_status()
-            data = response.json()
+        response = requests.get(url=self.API_URL, verify=self.ssl_verify, timeout=self.REQUEST_TIMEOUT)
+        response.raise_for_status()
+        data = response.json()
 
-            if not isinstance(data, list):
-                raise ValueError(f"Expected list, got {type(data)}")
+        if not isinstance(data, list):
+            raise ValueError(f"Expected list, got {type(data)}")
 
-            rates = self._parse_rates(data)
-            return rates
-
-        except requests.exceptions.Timeout:
-            logger.error(f"Request timeout while fetching from {self.BANK_NAME}")
-            raise
-        except requests.exceptions.RequestException as e:
-            logger.error(f"Request failed for {self.BANK_NAME}: {e}")
-            raise
-        except (ValueError, KeyError) as e:
-            logger.error(f"Failed to parse response from {self.BANK_NAME}: {e}")
-            raise
+        return self._parse_rates(data)
 
     def _parse_rates(self, data: list) -> Dict[str, CurrencyDetail]:
         rates = {}
@@ -81,32 +66,3 @@ class CapitronBankCrawler:
             return float(value)
         except (ValueError, AttributeError):
             return None
-
-
-if __name__ == "__main__":
-    import sys
-
-    sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "../..")))
-
-    from datetime import date
-
-    url = os.getenv("CAPITRONBANK_URI", "https://www.capitronbank.mn/p/exchange?lang=en")
-
-    today = date.today().isoformat()
-    print(f"\n{'='*60}")
-    print(f"Testing CapitronBank crawler for today: {today}")
-    print(f"{'='*60}\n")
-
-    crawler = CapitronBankCrawler(url=url, date=today)
-    try:
-        rates = crawler.crawl()
-        if len(rates) == 0:
-            print(f"CapitronBank has no rates available for {today}")
-        else:
-            for currency, details in list(rates.items())[:3]:
-                print(
-                    f"{currency.upper()}: Cash Buy={details.cash.buy}, Cash Sell={details.cash.sell}, "
-                    f"Non-Cash Buy={details.noncash.buy}, Non-Cash Sell={details.noncash.sell}"
-                )
-    except Exception as e:
-        print(f"Error: {e}")

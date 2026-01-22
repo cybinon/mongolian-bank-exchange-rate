@@ -9,9 +9,6 @@ load_dotenv()
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
 from app.models.exchange_rate import CurrencyDetail, Rate
-from app.utils.logger import get_logger
-
-logger = get_logger(__name__)
 
 
 class MongolBankCrawler:
@@ -25,30 +22,18 @@ class MongolBankCrawler:
         self.ssl_verify = os.getenv("SSL_VERIFY", "True").lower() in ("true", "1", "t")
 
     def crawl(self) -> Dict[str, CurrencyDetail]:
-        try:
-            response = requests.post(url=self.API_URL, verify=self.ssl_verify, timeout=self.REQUEST_TIMEOUT)
-            response.raise_for_status()
-            json_data = response.json()
+        response = requests.post(url=self.API_URL, verify=self.ssl_verify, timeout=self.REQUEST_TIMEOUT)
+        response.raise_for_status()
+        json_data = response.json()
 
-            if not json_data.get("success"):
-                raise ValueError("API returned success=false")
+        if not json_data.get("success"):
+            raise ValueError("API returned success=false")
 
-            data = json_data.get("data", [])
-            if not isinstance(data, list) or len(data) == 0:
-                raise ValueError("Expected non-empty list in data field")
+        data = json_data.get("data", [])
+        if not isinstance(data, list) or len(data) == 0:
+            raise ValueError("Expected non-empty list in data field")
 
-            rates = self._parse_rates(data[0])
-            return rates
-
-        except requests.exceptions.Timeout:
-            logger.error(f"Request timeout while fetching from {self.BANK_NAME}")
-            raise
-        except requests.exceptions.RequestException as e:
-            logger.error(f"Request failed for {self.BANK_NAME}: {e}")
-            raise
-        except (ValueError, KeyError) as e:
-            logger.error(f"Failed to parse response from {self.BANK_NAME}: {e}")
-            raise
+        return self._parse_rates(data[0])
 
     def _parse_rates(self, data: dict) -> Dict[str, CurrencyDetail]:
         rates = {}
@@ -76,23 +61,3 @@ class MongolBankCrawler:
             return float(cleaned)
         except (ValueError, AttributeError):
             return None
-
-
-if __name__ == "__main__":
-    import sys
-
-    sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "../..")))
-
-    from datetime import date
-
-    url = os.getenv("MONGOLBANK_URI")
-    today = date.today().isoformat()
-
-    crawler = MongolBankCrawler(url=url, date=today)
-    try:
-        rates = crawler.crawl()
-        for currency, detail in rates.items():
-            print(f"{currency.upper()}: {detail.noncash.buy}")
-    except Exception as e:
-        print(f"Error: {e}")
-        sys.exit(1)

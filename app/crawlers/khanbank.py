@@ -1,4 +1,3 @@
-import datetime
 import os
 from typing import Dict, Optional
 
@@ -7,13 +6,9 @@ import urllib3
 from dotenv import load_dotenv
 
 load_dotenv()
-
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
 from app.models.exchange_rate import CurrencyDetail, Rate
-from app.utils.logger import get_logger
-
-logger = get_logger(__name__)
 
 
 class KhanBankCrawler:
@@ -27,27 +22,14 @@ class KhanBankCrawler:
 
     def crawl(self) -> Dict[str, CurrencyDetail]:
         endpoint = f"{self.url}?date={self.date}"
+        response = requests.get(url=endpoint, verify=self.ssl_verify, timeout=self.REQUEST_TIMEOUT)
+        response.raise_for_status()
+        data = response.json()
 
-        try:
-            response = requests.get(url=endpoint, verify=self.ssl_verify, timeout=self.REQUEST_TIMEOUT)
-            response.raise_for_status()
-            data = response.json()
+        if not isinstance(data, list):
+            raise ValueError(f"Expected list response, got {type(data)}")
 
-            if not isinstance(data, list):
-                raise ValueError(f"Expected list response, got {type(data)}")
-
-            rates = self._parse_rates(data)
-            return rates
-
-        except requests.exceptions.Timeout:
-            logger.error(f"Request timeout while fetching from {self.BANK_NAME}")
-            raise
-        except requests.exceptions.RequestException as e:
-            logger.error(f"Request failed for {self.BANK_NAME}: {e}")
-            raise
-        except (ValueError, KeyError) as e:
-            logger.error(f"Failed to parse response from {self.BANK_NAME}: {e}")
-            raise
+        return self._parse_rates(data)
 
     def _parse_rates(self, data: list) -> Dict[str, CurrencyDetail]:
         rates = {}
@@ -55,7 +37,6 @@ class KhanBankCrawler:
         for item in data:
             currency_code = item.get("currency")
             if not currency_code:
-                logger.warning(f"Skipping item with missing currency code: {item}")
                 continue
 
             try:
@@ -69,8 +50,7 @@ class KhanBankCrawler:
                         sell=self._parse_rate_value(item.get("sellRate")),
                     ),
                 )
-            except Exception as e:
-                logger.warning(f"Failed to parse rates for {currency_code}: {e}")
+            except Exception:
                 continue
 
         return rates
@@ -79,42 +59,7 @@ class KhanBankCrawler:
     def _parse_rate_value(value) -> Optional[float]:
         if value is None:
             return None
-
         try:
             return float(value)
         except (ValueError, TypeError):
             return None
-
-
-if __name__ == "__main__":
-    try:
-        KHANBANK_URI = os.getenv("KHANBANK_URI")
-        if not KHANBANK_URI:
-            raise ValueError("KHANBANK_URI not set in environment variables")
-
-        today = datetime.date.today().isoformat()
-        logger.info(f"Testing Khan Bank crawler for date: {today}")
-
-        crawler = KhanBankCrawler(KHANBANK_URI, today)
-        rates = crawler.crawl()
-
-        if not rates:
-            logger.warning("No rates fetched from Khan Bank")
-        else:
-            print(f"\n{'='*60}")
-            print(f"Khan Bank Exchange Rates - {today}")
-            print(f"{'='*60}\n")
-
-            for code, detail in rates.items():
-                print(f"{code.upper()}:")
-                print(f"  Cash:    Buy: {detail.cash.buy:>10}  Sell: {detail.cash.sell:>10}")
-                print(f"  Noncash: Buy: {detail.noncash.buy:>10}  Sell: {detail.noncash.sell:>10}")
-                print()
-
-            print(f"{'='*60}")
-            print(f"Total currencies: {len(rates)}")
-            print(f"{'='*60}\n")
-
-    except Exception as e:
-        logger.error(f"Error during test execution: {e}")
-        raise

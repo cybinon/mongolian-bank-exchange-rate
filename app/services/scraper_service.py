@@ -1,7 +1,3 @@
-"""
-Service module to collect exchange rates from multiple banks.
-"""
-
 import datetime
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from typing import Dict, List, Optional, Tuple
@@ -25,7 +21,7 @@ from app.db.database import SessionLocal
 from app.models.exchange_rate import CurrencyDetail, ExchangeRate
 from app.utils.logger import get_logger
 
-logger = get_logger(__name__)
+logger = get_logger("scraper")
 
 
 class ScraperService:
@@ -48,6 +44,7 @@ class ScraperService:
         ]
 
     def run_crawlers(self):
+        logger.info(f"Starting crawl for {len(self.crawlers)} banks on {self.date}")
         crawlers_map = self._group_crawlers()
         results = []
 
@@ -68,6 +65,9 @@ class ScraperService:
                 results.append(self._execute_crawler(crawler))
 
         self._save_results(results)
+        logger.info(
+            f"Crawl completed: {len([r for r in results if r[1]])} succeeded, {len([r for r in results if r[2]])} failed"
+        )
 
     def _group_crawlers(self) -> Dict[str, List]:
         playwright_classes = (
@@ -97,16 +97,15 @@ class ScraperService:
         bank_name = crawler.__class__.__name__.replace("Crawler", "")
         try:
             rates = crawler.crawl()
-            if rates:
-                currencies = ", ".join(sorted(rates.keys()))
-                logger.info(f"Fetched {len(rates)} currencies from {bank_name}: {currencies}")
+            logger.info(f"{bank_name}: crawled {len(rates) if rates else 0} currencies")
             return bank_name, rates, None
         except Exception as e:
-            logger.error(f"Error crawling {bank_name}: {e}")
+            logger.exception(f"{bank_name}: crawl failed - {e}")
             return bank_name, None, e
 
     def _save_results(self, results):
         db = SessionLocal()
+        saved_count = 0
         try:
             for bank_name, rates, error in results:
                 if error or not rates:
@@ -114,10 +113,12 @@ class ScraperService:
                 try:
                     exchange_rate_data = ExchangeRate(date=self.date, bank=bank_name, rates=rates)
                     repository.save_rates(db, exchange_rate_data)
+                    saved_count += 1
                 except Exception as e:
-                    logger.error(f"Failed to save rates for {bank_name}: {e}")
+                    logger.exception(f"{bank_name}: failed to save rates - {e}")
         finally:
             db.close()
+            logger.info(f"Saved {saved_count} bank rates to database")
 
     def scrape_bank(self, bank_name: str) -> Optional[Dict[str, CurrencyDetail]]:
         bank_name_lower = bank_name.lower()
@@ -141,17 +142,14 @@ class ScraperService:
 
         crawler_factory = crawler_map.get(bank_name_lower)
         if not crawler_factory:
-            logger.error(f"Bank not found: {bank_name}")
+            logger.warning(f"Unknown bank: {bank_name}")
             return None
 
         try:
             crawler = crawler_factory()
             rates = crawler.crawl()
-            if rates:
-                currencies = ", ".join(sorted(rates.keys()))
-                logger.info(f"Fetched {len(rates)} currencies from {bank_name}: {currencies}")
+            logger.info(f"{bank_name}: scraped {len(rates) if rates else 0} currencies")
             return rates
-
         except Exception as e:
-            logger.error(f"Failed to scrape from {bank_name}: {e}")
+            logger.exception(f"{bank_name}: scrape failed - {e}")
             return None
