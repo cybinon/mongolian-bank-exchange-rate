@@ -11,14 +11,34 @@ logger = get_logger("db")
 
 
 def save_rates(db: Session, rate_data: ExchangeRate):
+    """Save or update exchange rates. Uses upsert logic to prevent duplicates."""
     try:
-        db_rate = CurrencyRate(
-            bank_name=rate_data.bank, date=datetime.date.fromisoformat(rate_data.date), rates=rate_data.dict()["rates"]
-        )
-        db.add(db_rate)
-        db.commit()
-        db.refresh(db_rate)
-        return db_rate
+        rate_date = datetime.date.fromisoformat(rate_data.date)
+        
+        # Check if record already exists for this bank and date
+        existing_rate = db.query(CurrencyRate).filter(
+            CurrencyRate.bank_name == rate_data.bank,
+            CurrencyRate.date == rate_date
+        ).first()
+        
+        if existing_rate:
+            # Update existing record
+            existing_rate.rates = rate_data.dict()["rates"]
+            existing_rate.timestamp = datetime.datetime.utcnow()
+            db.commit()
+            db.refresh(existing_rate)
+            return existing_rate
+        else:
+            # Create new record
+            db_rate = CurrencyRate(
+                bank_name=rate_data.bank, 
+                date=rate_date, 
+                rates=rate_data.dict()["rates"]
+            )
+            db.add(db_rate)
+            db.commit()
+            db.refresh(db_rate)
+            return db_rate
     except Exception as e:
         db.rollback()
         logger.exception(f"Failed to save rates for {rate_data.bank}: {e}")
