@@ -1,0 +1,3 @@
+#!/bin/bash
+# Install Playwright browsers during Heroku build
+playwright install chromium --with-deps
