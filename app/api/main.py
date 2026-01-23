@@ -78,7 +78,7 @@ def root():
         "name": "Монголын Банкуудын Валютын Ханш API",
         "version": __version__,
         "description": "Монголын 13 банкны валютын ханшийг авах нийтийн API",
-        "documentation": "/docs",
+        "documentation": "https://mongolian-bank-exchange-rate-6620c122ff22.herokuapp.com/docs",
         "github": __url__,
         "donation": __donation__,
         "data_update": "Өдөр бүр 09:00 цагт (UTC+8)",

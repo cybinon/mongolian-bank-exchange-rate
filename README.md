@@ -8,8 +8,8 @@
 - 🔄 Өдөр бүр автоматаар шинэчлэгдэнэ
 - 📅 Өмнөх өдрүүдийн ханшийг хайх боломжтой
 - 🏦 Банкаар шүүж хайх
-- 🚀 FastAPI дээр суурилсан хурдан API
-- 🐳 Docker дэмжлэгтэй
+- 🚀 FastAPI дээр суурилсан API
+- 🐳 Docker дээр ажиллана
 
 ## 🏛️ Дэмжигдсэн Банкууд
 
@@ -34,81 +34,98 @@
 | Эцсийн цэг | Тайлбар |
 |------------|---------|
 | `GET /` | API-ийн мэдээлэл |
-| `GET /health` | Эрүүл мэндийн шалгалт |
-| `GET /rates` | Бүх ханшийг авах (хуудаслалттай) |
+| `GET /health` | status шалгах |
+| `GET /rates` | Бүх ханшийг авах |
 | `GET /rates/latest` | Бүх банкны хамгийн сүүлийн ханш |
 | `GET /rates/bank/{bank_name}` | Тодорхой банкны ханш |
 | `GET /rates/date/{date}` | Тодорхой өдрийн ханш |
 | `GET /rates/bank/{bank_name}/date/{date}` | Тодорхой банк, өдрийн ханш |
 
-## 🚀 Render.com дээр байршуулах
+## 🚀 Heroku дээр байршуулах
 
 ### Урьдчилсан шаардлага
 
-- GitHub дансаа Render.com-тай холбосон байх
-- Энэ репо-г fork хийсэн эсвэл өөрийн GitHub данс руу push хийсэн байх
+- Heroku данстай байх
+- Heroku CLI суулгасан байх
+- GitHub репо-гоо clone хийсэн байх
 
-### 1-р алхам: Blueprint ашиглан нэг товшилтоор байршуулах
+### 1-р алхам: Heroku апп үүсгэх
 
-1. Render Dashboard руу очно: https://dashboard.render.com
-2. **New** → **Blueprint** дарна
-3. GitHub репо-гоо холбоно
-4. Render нь `render.yaml` файлыг автоматаар уншиж, дараах үйлчилгээнүүдийг үүсгэнэ:
-   - **mongolian-rates-api**: Web Service (API)
-   - **mongolian-rates-worker**: Background Worker (Cron)
-   - **mongolian-rates-db**: PostgreSQL өгөгдлийн сан
+```bash
+# Heroku руу нэвтрэх
+heroku login
 
-### 2-р алхам: Орчны хувьсагч тохируулах
+# Шинэ апп үүсгэх
+heroku create your-app-name
 
-Blueprint байршуулсны дараа дараах орчны хувьсагчийг тохируулна:
+# Container stack тохируулах (Playwright ажиллуулахад шаардлагатай)
+heroku stack:set container -a your-app-name
+```
 
-| Хувьсагч | Утга | Тайлбар |
-|----------|------|---------|
-| `CRON_SCHEDULE` | `0 9 * * *` | Өдөр бүр 09:00 цагт (UTC+8) ажиллана |
-| `SSL_VERIFY` | `true` | SSL баталгаажуулалт |
-| `PYTHONUNBUFFERED` | `1` | Python log буферлэхгүй |
+### 2-р алхам: PostgreSQL нэмэх
 
-### Гараар байршуулах
+```bash
+# PostgreSQL addon нэмэх (Mini план - $5/сар)
+heroku addons:create heroku-postgresql:essential-0 -a your-app-name
+```
 
-Хэрэв Blueprint ашиглахгүй бол гараар тохируулж болно:
+### 3-р алхам: Орчны хувьсагч тохируулах
 
-#### PostgreSQL өгөгдлийн сан үүсгэх
+```bash
+# Cron хуваарь тохируулах (UTC цагаар - Монголын 09:00 = UTC 01:00)
+heroku config:set CRON_SCHEDULE="0 1 * * *" -a your-app-name
 
-1. **New** → **PostgreSQL** дарна
-2. Нэр өгнө: `mongolian-rates-db`
-3. **Create Database** дарна
-4. `Internal Database URL`-ийг хуулна
+# ArigBank token (шаардлагатай бол)
+heroku config:set ARIGBANK_BEARER_TOKEN="your-token" -a your-app-name
+```
 
-#### Web Service үүсгэх
+### 4-р алхам: Байршуулах
 
-1. **New** → **Web Service** дарна
-2. GitHub репо-гоо холбоно
-3. Тохиргоо:
-   - **Name**: `mongolian-rates-api`
-   - **Runtime**: Docker
-   - **Region**: Singapore (Монголд ойр)
-4. Орчны хувьсагч нэмнэ:
-   - `DATABASE_URL`: PostgreSQL-ийн Internal URL
-5. **Create Web Service** дарна
+```bash
+# Heroku git remote нэмэх
+heroku git:remote -a your-app-name
 
-#### Background Worker үүсгэх (Cron)
+# Байршуулах
+git push heroku main
+```
 
-1. **New** → **Background Worker** дарна
-2. GitHub репо-гоо холбоно
-3. Тохиргоо:
-   - **Name**: `mongolian-rates-worker`
-   - **Runtime**: Docker
-   - **Docker Command**: `python cron.py`
-4. Орчны хувьсагч нэмнэ:
-   - `DATABASE_URL`: PostgreSQL-ийн Internal URL
-   - `CRON_SCHEDULE`: `0 9 * * *`
-5. **Create Background Worker** дарна
+### 5-р алхам: Worker эхлүүлэх
+
+```bash
+# Worker dyno эхлүүлэх
+heroku ps:scale worker=1 -a your-app-name
+```
+
+### Dyno төрөл сонгох
+
+```bash
+# Eco план руу шилжих ($5/сар - 1000 цаг хуваалцана)
+heroku ps:type eco -a your-app-name
+```
+
+### Төлөв шалгах
+
+```bash
+# Dyno-уудын төлөв
+heroku ps -a your-app-name
+
+# Log харах
+heroku logs --tail -a your-app-name
+```
+
+### 💰 Зардал (Heroku Student Pack)
+
+| Нөөц | Төлөвлөгөө | Зардал |
+|------|-----------|--------|
+| Web + Worker Dyno | Eco | $5/сар |
+| PostgreSQL | Essential-0 | $5/сар |
+| **Нийт** | | **$10/сар** |
 
 ## 🐳 Docker ашиглан локал орчинд ажиллуулах
 
 ```bash
 # Репо clone хийх
-git clone https://github.com/your-username/mongolian-bank-exchange-rate.git
+git clone https://github.com/btseee/mongolian-bank-exchange-rate.git
 cd mongolian-bank-exchange-rate
 
 # Docker Compose ашиглан эхлүүлэх
