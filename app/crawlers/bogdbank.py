@@ -1,5 +1,6 @@
 import os
 import time
+from datetime import date
 from typing import Dict, Optional
 
 import urllib3
@@ -27,7 +28,13 @@ class BogdBankCrawler:
             context = browser.new_context(ignore_https_errors=not self.ssl_verify)
             page = context.new_page()
 
-            url_with_date = f"{self.url}?date={self.date}" if self.date else self.url
+            # BogdBank doesn't support historical dates - only use date param for today
+            today = date.today().isoformat()
+            if self.date == today:
+                url_with_date = f"{self.url}?date={self.date}"
+            else:
+                # For historical dates, just get current rates (no historical data available)
+                url_with_date = self.url
 
             page.goto(url_with_date, timeout=self.REQUEST_TIMEOUT, wait_until="networkidle")
             page.wait_for_selector("table", timeout=self.REQUEST_TIMEOUT)
