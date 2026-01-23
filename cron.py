@@ -6,6 +6,7 @@ from app.config import config
 from app.db.database import init_db
 from app.services.scraper_service import ScraperService
 from app.utils.logger import get_logger
+from app.utils.playwright_setup import ensure_playwright_browsers
 
 logger = get_logger("cron")
 
@@ -34,6 +35,7 @@ def parse_cron_schedule(cron_string: str) -> dict:
 
 
 def main():
+    ensure_playwright_browsers()
     init_db()
     logger.info("Database initialized")
 
