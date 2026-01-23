@@ -41,87 +41,7 @@
 | `GET /rates/date/{date}` | Тодорхой өдрийн ханш |
 | `GET /rates/bank/{bank_name}/date/{date}` | Тодорхой банк, өдрийн ханш |
 
-## 🚀 Heroku дээр байршуулах
-
-### Урьдчилсан шаардлага
-
-- Heroku данстай байх
-- Heroku CLI суулгасан байх
-- GitHub репо-гоо clone хийсэн байх
-
-### 1-р алхам: Heroku апп үүсгэх
-
-```bash
-# Heroku руу нэвтрэх
-heroku login
-
-# Шинэ апп үүсгэх
-heroku create your-app-name
-
-# Container stack тохируулах (Playwright ажиллуулахад шаардлагатай)
-heroku stack:set container -a your-app-name
-```
-
-### 2-р алхам: PostgreSQL нэмэх
-
-```bash
-# PostgreSQL addon нэмэх (Mini план - $5/сар)
-heroku addons:create heroku-postgresql:essential-0 -a your-app-name
-```
-
-### 3-р алхам: Орчны хувьсагч тохируулах
-
-```bash
-# Cron хуваарь тохируулах (UTC цагаар - Монголын 09:00 = UTC 01:00)
-heroku config:set CRON_SCHEDULE="0 1 * * *" -a your-app-name
-
-# ArigBank token (шаардлагатай бол)
-heroku config:set ARIGBANK_BEARER_TOKEN="your-token" -a your-app-name
-```
-
-### 4-р алхам: Байршуулах
-
-```bash
-# Heroku git remote нэмэх
-heroku git:remote -a your-app-name
-
-# Байршуулах
-git push heroku main
-```
-
-### 5-р алхам: Worker эхлүүлэх
-
-```bash
-# Worker dyno эхлүүлэх
-heroku ps:scale worker=1 -a your-app-name
-```
-
-### Dyno төрөл сонгох
-
-```bash
-# Eco план руу шилжих ($5/сар - 1000 цаг хуваалцана)
-heroku ps:type eco -a your-app-name
-```
-
-### Төлөв шалгах
-
-```bash
-# Dyno-уудын төлөв
-heroku ps -a your-app-name
-
-# Log харах
-heroku logs --tail -a your-app-name
-```
-
-### 💰 Зардал (Heroku Student Pack)
-
-| Нөөц | Төлөвлөгөө | Зардал |
-|------|-----------|--------|
-| Web + Worker Dyno | Eco | $5/сар |
-| PostgreSQL | Essential-0 | $5/сар |
-| **Нийт** | | **$10/сар** |
-
-## 🐳 Docker ашиглан локал орчинд ажиллуулах
+## � Docker ашиглан ажиллуулах
 
 ```bash
 # Репо clone хийх
@@ -134,7 +54,34 @@ docker-compose up -d
 # API http://localhost:8000 дээр ажиллана
 # Docs http://localhost:8000/docs дээр харагдана
 ```
+## 💻 Локал орчинд ажиллуулах
 
+```bash
+# Репо clone хийх
+git clone https://github.com/btseee/mongolian-bank-exchange-rate.git
+cd mongolian-bank-exchange-rate
+
+# Virtual environment үүсгэх
+python -m venv .venv
+
+# Идэвхжүүлэх (Windows)
+.venv\Scripts\activate
+
+# Идэвхжүүлэх (Linux/Mac)
+source .venv/bin/activate
+
+# Хамаарлуудыг суулгах
+pip install -r requirements.txt
+
+# Playwright browser суулгах
+playwright install chromium
+
+# API эхлүүлэх
+uvicorn app.api.main:app --reload
+
+# Cron ажиллуулах (өөр терминалд)
+python cron.py
+```
 ## 🔧 Орчны хувьсагчууд
 
 | Хувьсагч | Анхдагч утга | Тайлбар |
