@@ -5,6 +5,7 @@ uvicorn[standard]>=0.24.0
 
 # Database
 sqlalchemy>=2.0.0
+psycopg2-binary>=2.9.0
 
 # Configuration
 python-dotenv>=1.0.0

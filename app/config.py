@@ -6,8 +6,17 @@ from dotenv import load_dotenv
 load_dotenv()
 
 
+def get_database_url() -> str:
+    """Get database URL and fix Heroku's postgres:// to postgresql://"""
+    url = os.getenv("DATABASE_URL", "sqlite:///./exchange_rates.db")
+    # Heroku uses postgres:// but SQLAlchemy requires postgresql://
+    if url.startswith("postgres://"):
+        url = url.replace("postgres://", "postgresql://", 1)
+    return url
+
+
 class CrawlerConfig:
-    DATABASE_URL: str = os.getenv("DATABASE_URL", "sqlite:///./exchange_rates.db")
+    DATABASE_URL: str = get_database_url()
     CRON_SCHEDULE: str = os.getenv("CRON_SCHEDULE", "0 9 * * *")
     SSL_VERIFY: bool = os.getenv("SSL_VERIFY", "False").lower() in ("true", "1", "t", "yes")
     REQUEST_TIMEOUT: int = int(os.getenv("REQUEST_TIMEOUT", "30"))
