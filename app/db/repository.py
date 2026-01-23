@@ -14,13 +14,14 @@ def save_rates(db: Session, rate_data: ExchangeRate):
     """Save or update exchange rates. Uses upsert logic to prevent duplicates."""
     try:
         rate_date = datetime.date.fromisoformat(rate_data.date)
-        
+
         # Check if record already exists for this bank and date
-        existing_rate = db.query(CurrencyRate).filter(
-            CurrencyRate.bank_name == rate_data.bank,
-            CurrencyRate.date == rate_date
-        ).first()
-        
+        existing_rate = (
+            db.query(CurrencyRate)
+            .filter(CurrencyRate.bank_name == rate_data.bank, CurrencyRate.date == rate_date)
+            .first()
+        )
+
         if existing_rate:
             # Update existing record
             existing_rate.rates = rate_data.dict()["rates"]
@@ -30,11 +31,7 @@ def save_rates(db: Session, rate_data: ExchangeRate):
             return existing_rate
         else:
             # Create new record
-            db_rate = CurrencyRate(
-                bank_name=rate_data.bank, 
-                date=rate_date, 
-                rates=rate_data.dict()["rates"]
-            )
+            db_rate = CurrencyRate(bank_name=rate_data.bank, date=rate_date, rates=rate_data.dict()["rates"])
             db.add(db_rate)
             db.commit()
             db.refresh(db_rate)
