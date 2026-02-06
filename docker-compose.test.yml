@@ -8,6 +8,4 @@ services:
     environment:
       DATABASE_URL: "sqlite:///:memory:"
       PYTHONPATH: "/app"
-    command: pytest --cov=app --cov-report=term-missing --cov-report=xml -v
-    volumes:
-      - ./coverage.xml:/app/coverage.xml
+    command: pytest --cov=app --cov-report=term-missing -v
