@@ -11,5 +11,5 @@ def ensure_playwright_browsers():
             capture_output=True,
         )
     except subprocess.CalledProcessError:
-        # Browsers might already be installed or we're in a restricted environment
+        # Browsers already installed or restricted environment
         pass
