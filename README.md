@@ -1,6 +1,6 @@
 # 🏦 Монголын Банкуудын Валютын Ханш API
 
-Монголын 13 банкны валютын ханшийг цуглуулж, API-аар үйлчилдэг нээлттэй эхийн төсөл.
+Монголын 13 банкны валютын ханшийг цуглуулж, API-аар үйлчилдэг opensource төсөл.
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![Python 3.8+](https://img.shields.io/badge/python-3.8+-blue.svg)](https://www.python.org/downloads/)
