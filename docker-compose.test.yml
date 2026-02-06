@@ -6,8 +6,8 @@ services:
       context: .
       target: test
     environment:
-      - DATABASE_URL=sqlite:///:memory:
-      - PYTHONPATH=/app
+      DATABASE_URL: "sqlite:///:memory:"
+      PYTHONPATH: "/app"
     command: pytest --cov=app --cov-report=term-missing --cov-report=xml -v
     volumes:
       - ./coverage.xml:/app/coverage.xml
