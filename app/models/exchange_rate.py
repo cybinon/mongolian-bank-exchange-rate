@@ -21,7 +21,6 @@ class CurrencyDetail(BaseModel):
     cash: Rate = Field(
         default_factory=Rate,
         description="Бэлэн ханш",
-
         examples=[{"buy": 3430.5, "sell": 3450.0}],
     )
     noncash: Rate = Field(

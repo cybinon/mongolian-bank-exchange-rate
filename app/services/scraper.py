@@ -17,9 +17,7 @@ class ScraperService:
         self.date = date or datetime.date.today().isoformat()
 
     def run_all(self):
-        logger.info(
-            f"Starting crawl on {self.date}"
-        )
+        logger.info(f"Starting crawl on {self.date}")
 
         results = []
         if config.ENABLE_PARALLEL:

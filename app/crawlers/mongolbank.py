@@ -26,7 +26,5 @@ class MongolBank(BaseCrawler):
             code = row.find("CcyNm_EN").text.lower()
             rate = self.parse_float(row.find("Rate").text)
             # MongolBank provides official central bank rate
-            rates[code] = self.make_rate(
-                noncash_buy=rate, noncash_sell=rate
-            )
+            rates[code] = self.make_rate(noncash_buy=rate, noncash_sell=rate)
         return rates
