@@ -1,2 +1,2 @@
-web: uvicorn app.api.main:app --host 0.0.0.0 --port $PORT
-worker: python cron.py
+web: uvicorn app.api.api:app --host 0.0.0.0 --port $PORT
+worker: python scripts/cron.py

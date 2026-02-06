@@ -1,67 +1,75 @@
 import os
-from typing import Optional
 
 from dotenv import load_dotenv
 
 load_dotenv()
 
 
-def get_database_url() -> str:
-    """Get database URL and fix Heroku's postgres:// to postgresql://"""
-    url = os.getenv("DATABASE_URL", "sqlite:///./exchange_rates.db")
-    # Heroku uses postgres:// but SQLAlchemy requires postgresql://
+def _env(key: str, default: str = "") -> str:
+    return os.getenv(key, default)
+
+
+def _env_bool(key: str, default: bool = False) -> bool:
+    return _env(key, str(default)).lower() in ("true", "1", "yes")
+
+
+def _env_int(key: str, default: int = 0) -> int:
+    return int(_env(key, str(default)))
+
+
+def _database_url() -> str:
+    url = _env("DATABASE_URL", "sqlite:///./exchange_rates.db")
     if url.startswith("postgres://"):
-        url = url.replace("postgres://", "postgresql://", 1)
+        return url.replace("postgres://", "postgresql://", 1)
     return url
 
 
-class CrawlerConfig:
-    DATABASE_URL: str = get_database_url()
-    CRON_SCHEDULE: str = os.getenv("CRON_SCHEDULE", "0 9 * * *")
-    SSL_VERIFY: bool = os.getenv("SSL_VERIFY", "False").lower() in ("true", "1", "t", "yes")
-    REQUEST_TIMEOUT: int = int(os.getenv("REQUEST_TIMEOUT", "30"))
-    PLAYWRIGHT_TIMEOUT: int = int(os.getenv("PLAYWRIGHT_TIMEOUT", "60000"))
-    ENABLE_PARALLEL: bool = os.getenv("ENABLE_PARALLEL", "true").lower() in ("true", "1", "t", "yes")
-    MAX_WORKERS: int = int(os.getenv("MAX_WORKERS", "8"))
-    PLAYWRIGHT_MAX_WORKERS: int = int(os.getenv("PLAYWRIGHT_MAX_WORKERS", "3"))
+class Config:
+    # Database
+    DATABASE_URL = _database_url()
 
-    KHANBANK_URI: str = os.getenv("KHANBANK_URI", "https://www.khanbank.com/api/back/rates")
-    TDBM_URI: str = os.getenv("TDBM_URI", "https://www.tdbm.mn/en/exchange-rates")
-    GOLOMT_URI: str = os.getenv("GOLOMT_URI", "https://www.golomtbank.com/api/exchange")
-    XACBANK_URI: str = os.getenv("XACBANK_URI", "https://xacbank.mn/api/currencies")
-    ARIGBANK_URI: str = os.getenv("ARIGBANK_URI", "https://www.arigbank.mn/en/rate")
-    BOGDBANK_URI: str = os.getenv("BOGDBANK_URI", "https://www.bogdbank.com/exchange")
-    STATEBANK_URI: str = os.getenv("STATEBANK_URI", "https://www.statebank.mn/back/api/fetchrate")
-    MONGOLBANK_URI: str = os.getenv("MONGOLBANK_URI", "https://www.mongolbank.mn/en/currency-rate-movement/data")
-    CAPITRONBANK_URI: str = os.getenv(
-        "CAPITRONBANK_URI", "https://www.capitronbank.mn/admin/en/wp-json/bank/rates/capitronbank"
+    # Scheduler
+    CRON_SCHEDULE = _env("CRON_SCHEDULE", "0 9 * * *")
+
+    # HTTP settings
+    SSL_VERIFY = _env_bool("SSL_VERIFY", False)
+    REQUEST_TIMEOUT = _env_int("REQUEST_TIMEOUT", 30)
+    PLAYWRIGHT_TIMEOUT = _env_int("PLAYWRIGHT_TIMEOUT", 60000)
+
+    # Parallel execution
+    ENABLE_PARALLEL = _env_bool("ENABLE_PARALLEL", True)
+    MAX_WORKERS = _env_int("MAX_WORKERS", 8)
+    PLAYWRIGHT_MAX_WORKERS = _env_int("PLAYWRIGHT_MAX_WORKERS", 3)
+
+    # Bank API endpoints
+    KHANBANK_URI = _env(
+        "KHANBANK_URI", "https://www.khanbank.com/api/back/rates"
     )
-    CKBANK_URI: str = os.getenv("CKBANK_URI", "https://www.ckbank.mn/currency-rates")
-    TRANSBANK_URI: str = os.getenv("TRANSBANK_URI", "https://transbank.mn/en/exchange")
-    NIBANK_URI: str = os.getenv("NIBANK_URI", "https://www.nibank.mn/en/rate")
-    MBANK_URI: str = os.getenv("MBANK_URI", "https://m-bank.mn/")
+    GOLOMT_URI = _env("GOLOMT_URI", "https://www.golomtbank.com/api/exchange")
+    XACBANK_URI = _env("XACBANK_URI", "https://xacbank.mn/api/currencies")
+    ARIGBANK_API_URL = _env(
+        "ARIGBANK_API_URL", "https://www.arigbank.mn/exchange/getRate"
+    )
+    ARIGBANK_BEARER_TOKEN = _env("ARIGBANK_BEARER_TOKEN")
+    STATEBANK_URI = _env(
+        "STATEBANK_URI", "https://www.statebank.mn/back/api/fetchrate"
+    )
+    MONGOLBANK_URI = _env(
+        "MONGOLBANK_URI",
+        "https://www.mongolbank.mn/en/currency-rate-movement/data",
+    )
+    CAPITRONBANK_API_URL = _env(
+        "CAPITRONBANK_URI",
+        "https://www.capitronbank.mn/admin/en/wp-json/bank/rates/capitronbank",
+    )
 
-    ARIGBANK_BEARER_TOKEN: Optional[str] = os.getenv("ARIGBANK_BEARER_TOKEN")
-    ARIGBANK_API_URL: str = os.getenv("ARIGBANK_API_URL", "https://www.arigbank.mn/exchange/getRate")
-
-    @classmethod
-    def get_bank_uri(cls, bank_name: str) -> Optional[str]:
-        bank_uri_mapping = {
-            "khanbank": cls.KHANBANK_URI,
-            "tdbm": cls.TDBM_URI,
-            "golomt": cls.GOLOMT_URI,
-            "xacbank": cls.XACBANK_URI,
-            "arigbank": cls.ARIGBANK_URI,
-            "bogdbank": cls.BOGDBANK_URI,
-            "statebank": cls.STATEBANK_URI,
-            "mongolbank": cls.MONGOLBANK_URI,
-            "capitronbank": cls.CAPITRONBANK_URI,
-            "ckbank": cls.CKBANK_URI,
-            "transbank": cls.TRANSBANK_URI,
-            "nibank": cls.NIBANK_URI,
-            "mbank": cls.MBANK_URI,
-        }
-        return bank_uri_mapping.get(bank_name.lower())
+    # Playwright-based bank URLs
+    TDBM_URI = _env("TDBM_URI", "https://www.tdbm.mn/en/exchange-rates")
+    BOGDBANK_URI = _env("BOGDBANK_URI", "https://www.bogdbank.com/exchange")
+    CKBANK_URI = _env("CKBANK_URI", "https://www.ckbank.mn/currency-rates")
+    NIBANK_URI = _env("NIBANK_URI", "https://www.nibank.mn/en/rate")
+    TRANSBANK_URI = _env("TRANSBANK_URI", "https://transbank.mn/en/exchange")
+    MBANK_URI = _env("MBANK_URI", "https://m-bank.mn/")
 
 
-config = CrawlerConfig()
+config = Config()

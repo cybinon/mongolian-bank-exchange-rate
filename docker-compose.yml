@@ -31,7 +31,7 @@ services:
       context: .
       dockerfile: Dockerfile
     container_name: mongolian-bank-cron
-    command: python cron.py
+    command: python scripts/cron.py
     env_file:
       - .env
     depends_on:

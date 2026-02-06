@@ -1,9 +1,13 @@
-import datetime
+from datetime import datetime, timezone
 
 from sqlalchemy import JSON, Column, Date, DateTime, Integer, String
-from sqlalchemy.ext.declarative import declarative_base
+from sqlalchemy.orm import declarative_base
 
 Base = declarative_base()
+
+
+def utc_now():
+    return datetime.now(timezone.utc)
 
 
 class CurrencyRate(Base):
@@ -13,4 +17,4 @@ class CurrencyRate(Base):
     bank_name = Column(String, index=True)
     date = Column(Date, index=True)
     rates = Column(JSON)
-    timestamp = Column(DateTime, default=datetime.datetime.utcnow)
+    timestamp = Column(DateTime, default=utc_now)

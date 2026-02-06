@@ -5,36 +5,81 @@ from pydantic import BaseModel, Field
 
 
 class Rate(BaseModel):
-    buy: Optional[float] = Field(None, description="Авах ханш", examples=[3420.5])
-    sell: Optional[float] = Field(None, description="Зарах ханш", examples=[3450.0])
+    buy: Optional[float] = Field(
+        default=None,
+        description="Авах ханш",
+        examples=[3430.5],
+    )
+    sell: Optional[float] = Field(
+        default=None,
+        description="Зарах ханш",
+        examples=[3450.0],
+    )
 
 
 class CurrencyDetail(BaseModel):
-    cash: Rate = Field(..., description="Бэлэн мөнгөний ханш")
-    noncash: Rate = Field(..., description="Бэлэн бус мөнгөний ханш")
+    cash: Rate = Field(
+        default_factory=Rate,
+        description="Бэлэн ханш",
+
+        examples=[{"buy": 3430.5, "sell": 3450.0}],
+    )
+    noncash: Rate = Field(
+        default_factory=Rate,
+        description="Бэлэн бус ханш",
+        examples=[{"buy": 3435.0, "sell": 3445.0}],
+    )
 
 
 class ExchangeRate(BaseModel):
-    date: str
-    bank: str
-    rates: Dict[str, CurrencyDetail]
-
-
-class CurrencyRateResponse(BaseModel):
-    id: int = Field(..., description="Бичлэгийн ID", examples=[1])
-    bank_name: str = Field(..., description="Банкны нэр", examples=["KhanBank"])
-    date: datetime.date = Field(..., description="Ханшийн огноо", examples=["2026-01-22"])
+    date: str = Field(
+        description="Өдрийн ханш (YYYY-MM-DD)",
+        examples=["2024-01-15"],
+    )
+    bank: str = Field(
+        description="Банкны нэр",
+        examples=["KhanBank"],
+    )
     rates: Dict[str, CurrencyDetail] = Field(
-        ...,
-        description="Валютын ханшууд (USD, EUR, CNY, JPY, RUB, KRW, GBP гэх мэт)",
+        description="Валютын кодоор ангилагдсан ханш",
         examples=[
             {
-                "usd": {"cash": {"buy": 3420.5, "sell": 3450.0}, "noncash": {"buy": 3415.0, "sell": 3455.0}},
-                "eur": {"cash": {"buy": 3720.0, "sell": 3780.0}, "noncash": {"buy": 3715.0, "sell": 3785.0}},
+                "usd": {
+                    "cash": {"buy": 3430.5, "sell": 3450.0},
+                    "noncash": {"buy": 3435.0, "sell": 3445.0},
+                }
             }
         ],
     )
-    timestamp: datetime.datetime = Field(..., description="Бичлэг үүссэн цаг")
 
-    class Config:
-        from_attributes = True
+
+class CurrencyRateResponse(BaseModel):
+    id: int = Field(
+        description="Ханшийн Id",
+        examples=[1],
+    )
+    bank_name: str = Field(
+        description="Банкны нэр",
+        examples=["KhanBank"],
+    )
+    date: datetime.date = Field(
+        description="Өдрийн ханш (YYYY-MM-DD)",
+        examples=["2024-01-15"],
+    )
+    rates: Dict[str, CurrencyDetail] = Field(
+        description="Валютын кодоор ангилагдсан ханш",
+        examples=[
+            {
+                "usd": {
+                    "cash": {"buy": 3430.5, "sell": 3450.0},
+                    "noncash": {"buy": 3435.0, "sell": 3445.0},
+                }
+            }
+        ],
+    )
+    timestamp: datetime.datetime = Field(
+        description="Хэзээ ханш бүртгэгдсэн",
+        examples=["2024-01-15T10:30:00Z"],
+    )
+
+    model_config = {"from_attributes": True}

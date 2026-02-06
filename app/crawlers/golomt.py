@@ -1,71 +1,31 @@
-import os
-from typing import Dict, Optional
+from typing import Dict
 
-import requests
-import urllib3
-from dotenv import load_dotenv
-
-load_dotenv()
-urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
-
-from app.models.exchange_rate import CurrencyDetail, Rate
+from app.config import config
+from app.crawlers.base import BaseCrawler
+from app.models.exchange_rate import CurrencyDetail
 
 
-class GolomtBankCrawler:
+class GolomtBank(BaseCrawler):
     BANK_NAME = "GolomtBank"
-    REQUEST_TIMEOUT = 30
-
-    def __init__(self, url: str, date: str):
-        self.url = url
-        self.date = date
-        self.ssl_verify = os.getenv("SSL_VERIFY", "True").lower() in ("true", "1", "t")
 
     def crawl(self) -> Dict[str, CurrencyDetail]:
-        date_formatted = self.date.replace("-", "")
-        endpoint = f"{self.url}?date={date_formatted}"
+        date_fmt = self.date.replace("-", "")
+        resp = self.get(f"{config.GOLOMT_URI}?date={date_fmt}")
+        resp.raise_for_status()
+        return self._parse(resp.json().get("result", {}))
 
-        response = requests.get(url=endpoint, verify=self.ssl_verify, timeout=self.REQUEST_TIMEOUT)
-        response.raise_for_status()
-        data = response.json()
-
-        if not isinstance(data, dict) or "result" not in data:
-            raise ValueError(f"Expected dict with 'result' key, got {type(data)}")
-
-        return self._parse_rates(data["result"])
-
-    def _parse_rates(self, data: dict) -> Dict[str, CurrencyDetail]:
+    def _parse(self, data: dict) -> Dict[str, CurrencyDetail]:
         rates = {}
-
-        for currency_code, currency_data in data.items():
-            if not isinstance(currency_data, dict):
-                continue
-
-            try:
-                cash_buy = currency_data.get("cash_buy", {})
-                cash_sell = currency_data.get("cash_sell", {})
-                non_cash_buy = currency_data.get("non_cash_buy", {})
-                non_cash_sell = currency_data.get("non_cash_sell", {})
-
-                rates[currency_code.lower()] = CurrencyDetail(
-                    cash=Rate(
-                        buy=self._parse_rate_value(cash_buy.get("cvalue")),
-                        sell=self._parse_rate_value(cash_sell.get("cvalue")),
-                    ),
-                    noncash=Rate(
-                        buy=self._parse_rate_value(non_cash_buy.get("cvalue")),
-                        sell=self._parse_rate_value(non_cash_sell.get("cvalue")),
-                    ),
+        for code, v in data.items():
+            if isinstance(v, dict):
+                cash_buy = v.get("cash_buy", {})
+                cash_sell = v.get("cash_sell", {})
+                noncash_buy = v.get("non_cash_buy", {})
+                noncash_sell = v.get("non_cash_sell", {})
+                rates[code.lower()] = self.make_rate(
+                    cash_buy=self.parse_float(cash_buy.get("cvalue")),
+                    cash_sell=self.parse_float(cash_sell.get("cvalue")),
+                    noncash_buy=self.parse_float(noncash_buy.get("cvalue")),
+                    noncash_sell=self.parse_float(noncash_sell.get("cvalue")),
                 )
-            except Exception:
-                continue
-
         return rates
-
-    @staticmethod
-    def _parse_rate_value(value) -> Optional[float]:
-        if value is None:
-            return None
-        try:
-            return float(value)
-        except (ValueError, TypeError):
-            return None

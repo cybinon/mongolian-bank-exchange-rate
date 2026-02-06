@@ -1,113 +1,57 @@
+"""TransBank crawler using Playwright for JavaScript rendering."""
+
 import json
-import os
 from typing import Dict
 
-import urllib3
-from dotenv import load_dotenv
-from playwright.sync_api import sync_playwright
-
-load_dotenv()
-urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
-
-from app.models.exchange_rate import CurrencyDetail, Rate
+from app.config import config
+from app.crawlers.base import PlaywrightCrawler
+from app.models.exchange_rate import CurrencyDetail
 
 
-class TransBankCrawler:
+class TransBank(PlaywrightCrawler):
     BANK_NAME = "TransBank"
-    REQUEST_TIMEOUT = 60000
 
-    def __init__(self, url: str, date: str):
-        self.url = url
-        self.date = date
-        self.ssl_verify = os.getenv("SSL_VERIFY", "True").lower() in ("true", "1", "t")
+    def _crawl_page(self, page) -> Dict[str, CurrencyDetail]:
+        url = f"{config.TRANSBANK_URI}?startdate={self.date}"
+        page.goto(url, timeout=self.timeout, wait_until="networkidle")
+        page.wait_for_selector("table", timeout=self.timeout)
 
-    def crawl(self) -> Dict[str, CurrencyDetail]:
-        url_with_date = f"{self.url}?startdate={self.date}" if "?" not in self.url else self.url
-
-        with sync_playwright() as p:
-            browser = p.chromium.launch(headless=True)
-            page = browser.new_page()
-
-            page.goto(url_with_date, timeout=self.REQUEST_TIMEOUT, wait_until="networkidle")
-            page.wait_for_selector("table", timeout=self.REQUEST_TIMEOUT)
-
-            next_data_script = page.locator("script#__NEXT_DATA__").first
-            if next_data_script:
-                json_text = next_data_script.inner_text()
-                data = json.loads(json_text)
-                rates = self._parse_next_data(data)
-            else:
-                rates = self._parse_table(page)
-
-            browser.close()
-
-            return rates
+        script = page.locator("script#__NEXT_DATA__").first
+        if script.count():
+            data = json.loads(script.inner_text())
+            return self._parse_next_data(data)
+        return self._parse_table(page)
 
     def _parse_next_data(self, data: dict) -> Dict[str, CurrencyDetail]:
         rates = {}
-
-        rate_data = data.get("props", {}).get("pageProps", {}).get("rateData", {})
-
-        for date_key, currencies in rate_data.items():
-            for currency_code, currency_data in currencies.items():
-                if currency_code == "NAME":
+        props = data.get("props", {})
+        page_props = props.get("pageProps", {})
+        rate_data = page_props.get("rateData", {})
+        for currencies in rate_data.values():
+            for code, v in currencies.items():
+                if code == "NAME":
                     continue
-
-                code = currency_code.strip().lower()
-
-                cash_data = currency_data.get("2", {})
-                cash_buy = self._parse_float(cash_data.get("BUY_RATE"))
-                cash_sell = self._parse_float(cash_data.get("SELL_RATE"))
-
-                noncash_data = currency_data.get("3", {})
-                noncash_buy = self._parse_float(noncash_data.get("BUY_RATE"))
-                noncash_sell = self._parse_float(noncash_data.get("SELL_RATE"))
-
-                rates[code] = CurrencyDetail(
-                    cash=Rate(buy=cash_buy, sell=cash_sell), noncash=Rate(buy=noncash_buy, sell=noncash_sell)
+                cash = v.get("2", {})
+                noncash = v.get("3", {})
+                rates[code.strip().lower()] = self.make_rate(
+                    cash_buy=self.parse_float(cash.get("BUY_RATE")),
+                    cash_sell=self.parse_float(cash.get("SELL_RATE")),
+                    noncash_buy=self.parse_float(noncash.get("BUY_RATE")),
+                    noncash_sell=self.parse_float(noncash.get("SELL_RATE")),
                 )
-
         return rates
 
     def _parse_table(self, page) -> Dict[str, CurrencyDetail]:
         rates = {}
-
-        table = page.locator("table").first
-        rows = table.locator("tbody tr").all()
-
-        for row in rows:
+        for row in page.locator("table tbody tr").all():
             cells = row.locator("td").all()
-            if len(cells) < 7:
-                continue
-
-            try:
-                currency_text = cells[0].inner_text().strip()
-                currency_code = currency_text.split()[0].lower()
-
-                if not currency_code or len(currency_code) > 10:
-                    continue
-
-                cash_buy = self._parse_float(cells[3].inner_text())
-                cash_sell = self._parse_float(cells[4].inner_text())
-                noncash_buy = self._parse_float(cells[5].inner_text())
-                noncash_sell = self._parse_float(cells[6].inner_text())
-
-                rates[currency_code] = CurrencyDetail(
-                    cash=Rate(buy=cash_buy, sell=cash_sell), noncash=Rate(buy=noncash_buy, sell=noncash_sell)
-                )
-            except (ValueError, IndexError):
-                continue
-
+            if len(cells) >= 7:
+                code = cells[0].inner_text().strip().split()[0].lower()
+                if code and len(code) <= 10:
+                    rates[code] = self.make_rate(
+                        cash_buy=self.parse_float(cells[3].inner_text()),
+                        cash_sell=self.parse_float(cells[4].inner_text()),
+                        noncash_buy=self.parse_float(cells[5].inner_text()),
+                        noncash_sell=self.parse_float(cells[6].inner_text()),
+                    )
         return rates
-
-    def _parse_float(self, value) -> float:
-        try:
-            if isinstance(value, (int, float)):
-                return float(value) if value != 0 else None
-
-            cleaned = str(value).strip().replace(",", "").replace(" ", "").replace("\xa0", "")
-            if not cleaned or cleaned == "-" or cleaned == "0":
-                return None
-            return float(cleaned)
-        except (ValueError, TypeError):
-            return None

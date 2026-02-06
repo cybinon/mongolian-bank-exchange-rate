@@ -1,52 +1,56 @@
-import datetime
+from datetime import date, datetime, timezone
 from typing import List, Optional
 
+from sqlalchemy import func
 from sqlalchemy.orm import Session
 
 from app.models.currency import CurrencyRate
 from app.models.exchange_rate import ExchangeRate
-from app.utils.logger import get_logger
-
-logger = get_logger("db")
 
 
-def save_rates(db: Session, rate_data: ExchangeRate):
-    """Save or update exchange rates. Uses upsert logic to prevent duplicates."""
-    try:
-        rate_date = datetime.date.fromisoformat(rate_data.date)
-
-        # Check if record already exists for this bank and date
-        existing_rate = (
-            db.query(CurrencyRate)
-            .filter(CurrencyRate.bank_name == rate_data.bank, CurrencyRate.date == rate_date)
-            .first()
+def save_rates(db: Session, data: ExchangeRate) -> CurrencyRate:
+    """Save or update exchange rates (upsert)."""
+    rate_date = date.fromisoformat(data.date)
+    existing = (
+        db.query(CurrencyRate)
+        .filter(
+            CurrencyRate.bank_name == data.bank,
+            CurrencyRate.date == rate_date,
         )
+        .first()
+    )
 
-        if existing_rate:
-            # Update existing record
-            existing_rate.rates = rate_data.dict()["rates"]
-            existing_rate.timestamp = datetime.datetime.utcnow()
-            db.commit()
-            db.refresh(existing_rate)
-            return existing_rate
-        else:
-            # Create new record
-            db_rate = CurrencyRate(bank_name=rate_data.bank, date=rate_date, rates=rate_data.dict()["rates"])
-            db.add(db_rate)
-            db.commit()
-            db.refresh(db_rate)
-            return db_rate
-    except Exception as e:
-        db.rollback()
-        logger.exception(f"Failed to save rates for {rate_data.bank}: {e}")
-        raise
+    if existing:
+        existing.rates = data.model_dump()["rates"]
+        existing.timestamp = datetime.now(timezone.utc)
+    else:
+        existing = CurrencyRate(
+            bank_name=data.bank,
+            date=rate_date,
+            rates=data.model_dump()["rates"],
+        )
+        db.add(existing)
+
+    db.commit()
+    db.refresh(existing)
+    return existing
 
 
-def get_all_rates(db: Session, skip: int = 0, limit: int = 100) -> List[CurrencyRate]:
-    return db.query(CurrencyRate).order_by(CurrencyRate.timestamp.desc()).offset(skip).limit(limit).all()
+def get_all_rates(
+    db: Session, skip: int = 0, limit: int = 100
+) -> List[CurrencyRate]:
+    return (
+        db.query(CurrencyRate)
+        .order_by(CurrencyRate.timestamp.desc())
+        .offset(skip)
+        .limit(limit)
+        .all()
+    )
 
 
-def get_rates_by_bank(db: Session, bank_name: str, skip: int = 0, limit: int = 100) -> List[CurrencyRate]:
+def get_rates_by_bank(
+    db: Session, bank_name: str, skip: int = 0, limit: int = 100
+) -> List[CurrencyRate]:
     return (
         db.query(CurrencyRate)
         .filter(CurrencyRate.bank_name == bank_name)
@@ -57,10 +61,12 @@ def get_rates_by_bank(db: Session, bank_name: str, skip: int = 0, limit: int = 1
     )
 
 
-def get_rates_by_date(db: Session, date: datetime.date, skip: int = 0, limit: int = 100) -> List[CurrencyRate]:
+def get_rates_by_date(
+    db: Session, target_date: date, skip: int = 0, limit: int = 100
+) -> List[CurrencyRate]:
     return (
         db.query(CurrencyRate)
-        .filter(CurrencyRate.date == date)
+        .filter(CurrencyRate.date == target_date)
         .order_by(CurrencyRate.timestamp.desc())
         .offset(skip)
         .limit(limit)
@@ -68,27 +74,35 @@ def get_rates_by_date(db: Session, date: datetime.date, skip: int = 0, limit: in
     )
 
 
-def get_rates_by_bank_and_date(db: Session, bank_name: str, date: datetime.date) -> Optional[CurrencyRate]:
+def get_rates_by_bank_and_date(
+    db: Session, bank_name: str, target_date: date
+) -> Optional[CurrencyRate]:
     return (
         db.query(CurrencyRate)
-        .filter(CurrencyRate.bank_name == bank_name, CurrencyRate.date == date)
-        .order_by(CurrencyRate.timestamp.desc())
+        .filter(
+            CurrencyRate.bank_name == bank_name,
+            CurrencyRate.date == target_date,
+        )
         .first()
     )
 
 
 def get_latest_rates(db: Session) -> List[CurrencyRate]:
-    from sqlalchemy import func
-
-    subquery = (
-        db.query(CurrencyRate.bank_name, func.max(CurrencyRate.timestamp).label("max_ts"))
+    subq = (
+        db.query(
+            CurrencyRate.bank_name,
+            func.max(CurrencyRate.timestamp).label("max_ts"),
+        )
         .group_by(CurrencyRate.bank_name)
         .subquery()
     )
+
     return (
         db.query(CurrencyRate)
         .join(
-            subquery, (CurrencyRate.bank_name == subquery.c.bank_name) & (CurrencyRate.timestamp == subquery.c.max_ts)
+            subq,
+            (CurrencyRate.bank_name == subq.c.bank_name)
+            & (CurrencyRate.timestamp == subq.c.max_ts),
         )
         .all()
     )

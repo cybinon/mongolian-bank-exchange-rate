@@ -1,123 +1,54 @@
-import logging
-import os
-from typing import Dict, Optional
+"""MBank crawler using Playwright for JavaScript rendering."""
 
-import urllib3
-from dotenv import load_dotenv
-from playwright.sync_api import sync_playwright
+from typing import Dict
 
-load_dotenv()
-urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
-
-from app.models.exchange_rate import CurrencyDetail, Rate
-
-logger = logging.getLogger(__name__)
+from app.config import config
+from app.crawlers.base import PlaywrightCrawler
+from app.models.exchange_rate import CurrencyDetail
 
 
-class MBankCrawler:
-    BANK_NAME = "M-Bank"
-    REQUEST_TIMEOUT = 60000
+class MBank(PlaywrightCrawler):
+    BANK_NAME = "MBank"
 
-    def __init__(self, url: str, date: str):
-        self.url = url
-        self.date = date
-        self.ssl_verify = os.getenv("SSL_VERIFY", "True").lower() in ("true", "1", "t")
+    def _crawl_page(self, page) -> Dict[str, CurrencyDetail]:
+        page.goto(
+            config.MBANK_URI,
+            timeout=self.timeout,
+            wait_until="networkidle",
+        )
+        page.wait_for_timeout(3000)
 
-    def crawl(self) -> Dict[str, CurrencyDetail]:
-        with sync_playwright() as p:
-            browser = p.chromium.launch(headless=True)
-            page = browser.new_page()
+        button = page.locator("xpath=/html/body/div/div/div[2]/button")
+        if button.count() > 0:
+            button.click()
+            page.wait_for_timeout(5000)
+        else:
+            alt = page.locator("text=Валютын ханш").first
+            if alt.count() > 0:
+                alt.click()
+                page.wait_for_timeout(5000)
 
-            try:
-                page.goto(self.url, timeout=self.REQUEST_TIMEOUT, wait_until="networkidle")
-                page.wait_for_timeout(3000)
-
-                button = page.locator("xpath=/html/body/div/div/div[2]/button")
-                if button.count() > 0:
-                    button.click()
-                    page.wait_for_timeout(5000)
-                else:
-                    alt_button = page.locator("text=Валютын ханш").first
-                    if alt_button.count() > 0:
-                        alt_button.click()
-                        page.wait_for_timeout(5000)
-
-            except Exception as e:
-                logger.warning(f"MBank page load/click error: {e}")
-                browser.close()
-                return {}
-
-            rates = self._extract_rates_from_page(page)
-            browser.close()
-
+        rates = {}
+        xpath = "xpath=/html/body/div/div/div[2]/div[4]/div[2]"
+        container = page.locator(xpath)
+        if container.count() == 0:
+            container = page.locator("div.relative.overflow-x-auto")
+        if container.count() == 0:
             return rates
 
-    def _extract_rates_from_page(self, page) -> Dict[str, CurrencyDetail]:
-        rates = {}
+        selector = r"div.flex.min-w-\[760px\].bg-white"
+        for row in container.locator(selector).all():
+            currency_el = row.locator("p.font-semibold").first
+            if currency_el.count() == 0:
+                continue
+            code = (currency_el.text_content() or "").strip().lower()
+            if not code or len(code) != 3 or code in rates:
+                continue
 
-        try:
-            container = page.locator("xpath=/html/body/div/div/div[2]/div[4]/div[2]")
-
-            if container.count() == 0:
-                container = page.locator("div.relative.overflow-x-auto")
-
-            if container.count() == 0:
-                logger.warning("MBank: Exchange rate container not found")
-                return rates
-
-            rows = container.locator("div.flex.min-w-\\[760px\\].bg-white").all()
-
-            for row in rows:
-                try:
-                    currency_el = row.locator("p.font-semibold").first
-                    if currency_el.count() == 0:
-                        continue
-
-                    currency_code = (currency_el.text_content() or "").strip().lower()
-                    if not currency_code or len(currency_code) != 3:
-                        continue
-
-                    if currency_code in rates:
-                        continue
-
-                    rate_elements = row.locator("p.font-regular").all()
-
-                    if len(rate_elements) >= 4:
-                        noncash_buy = self._parse_float(rate_elements[2].text_content())
-                        noncash_sell = self._parse_float(rate_elements[3].text_content())
-
-                        if noncash_buy and noncash_sell:
-                            rates[currency_code] = CurrencyDetail(
-                                cash=Rate(buy=noncash_buy, sell=noncash_sell),
-                                noncash=Rate(buy=noncash_buy, sell=noncash_sell),
-                            )
-
-                except Exception as e:
-                    logger.debug(f"MBank row parsing error: {e}")
-                    continue
-
-        except Exception as e:
-            logger.warning(f"MBank extraction error: {e}")
-
+            els = row.locator("p.font-regular").all()
+            if len(els) >= 4:
+                buy = self.parse_float(els[2].text_content())
+                sell = self.parse_float(els[3].text_content())
+                if buy and sell:
+                    rates[code] = self.make_rate(buy, sell, buy, sell)
         return rates
-
-    def _parse_float(self, value) -> Optional[float]:
-        try:
-            if isinstance(value, (int, float)):
-                return float(value) if value != 0 else None
-
-            cleaned = str(value).strip().replace(" ", "").replace("\xa0", "")
-
-            if not cleaned or cleaned == "-" or cleaned == "0":
-                return None
-
-            if "." in cleaned and "," in cleaned:
-                cleaned = cleaned.replace(".", "").replace(",", ".")
-            elif "." in cleaned and cleaned.count(".") == 1 and len(cleaned.split(".")[-1]) == 3:
-                cleaned = cleaned.replace(".", "")
-            elif "," in cleaned:
-                cleaned = cleaned.replace(",", ".")
-
-            return float(cleaned)
-        except (ValueError, TypeError):
-            return None

@@ -1,84 +1,37 @@
-import os
-import time
+"""BogdBank crawler using Playwright for JavaScript rendering."""
+
 from datetime import date
-from typing import Dict, Optional
+from typing import Dict
 
-import urllib3
-from dotenv import load_dotenv
-from playwright.sync_api import sync_playwright
-
-load_dotenv()
-urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
-
-from app.models.exchange_rate import CurrencyDetail, Rate
+from app.config import config
+from app.crawlers.base import PlaywrightCrawler
+from app.models.exchange_rate import CurrencyDetail
 
 
-class BogdBankCrawler:
+class BogdBank(PlaywrightCrawler):
     BANK_NAME = "BogdBank"
-    REQUEST_TIMEOUT = 60000
 
-    def __init__(self, url: str, date: str):
-        self.url = url
-        self.date = date
-        self.ssl_verify = os.getenv("SSL_VERIFY", "True").lower() in ("true", "1", "t")
+    def _crawl_page(self, page) -> Dict[str, CurrencyDetail]:
+        url = (
+            f"{config.BOGDBANK_URI}?date={self.date}"
+            if self.date == date.today().isoformat()
+            else config.BOGDBANK_URI
+        )
+        page.goto(url, timeout=self.timeout, wait_until="networkidle")
+        page.wait_for_selector("table", timeout=self.timeout)
+        page.wait_for_timeout(2000)
 
-    def crawl(self) -> Dict[str, CurrencyDetail]:
-        with sync_playwright() as p:
-            browser = p.chromium.launch(headless=True)
-            context = browser.new_context(ignore_https_errors=not self.ssl_verify)
-            page = context.new_page()
-
-            today = date.today().isoformat()
-            if self.date == today:
-                url_with_date = f"{self.url}?date={self.date}"
-            else:
-                url_with_date = self.url
-
-            page.goto(url_with_date, timeout=self.REQUEST_TIMEOUT, wait_until="networkidle")
-            page.wait_for_selector("table", timeout=self.REQUEST_TIMEOUT)
-            time.sleep(2)
-
-            rates = self._parse_rates(page)
-            browser.close()
-
-        return rates
-
-    def _parse_rates(self, page) -> Dict[str, CurrencyDetail]:
         rates = {}
-        rows = page.locator("table tbody tr").all()
-
-        for row in rows:
+        for row in page.locator("table tbody tr").all():
             cells = row.locator("td").all()
-
             if len(cells) >= 6:
-                try:
-                    currency_text = cells[0].inner_text().strip()
-                    currency_code = currency_text.replace("\xa0", "").replace(" ", "").lower()
-
-                    if not currency_code or len(currency_code) < 3:
-                        continue
-
-                    cash_buy = self._parse_float(cells[2].inner_text())
-                    cash_sell = self._parse_float(cells[3].inner_text())
-                    noncash_buy = self._parse_float(cells[4].inner_text())
-                    noncash_sell = self._parse_float(cells[5].inner_text())
-
-                    rates[currency_code] = CurrencyDetail(
-                        cash=Rate(buy=cash_buy if cash_buy else 0.0, sell=cash_sell if cash_sell else 0.0),
-                        noncash=Rate(
-                            buy=noncash_buy if noncash_buy else 0.0, sell=noncash_sell if noncash_sell else 0.0
-                        ),
+                raw = cells[0].inner_text().strip()
+                code = raw.replace("\xa0", "").replace(" ", "").lower()
+                if code and len(code) >= 3:
+                    rates[code] = self.make_rate(
+                        cash_buy=self.parse_float(cells[2].inner_text()),
+                        cash_sell=self.parse_float(cells[3].inner_text()),
+                        noncash_buy=self.parse_float(cells[4].inner_text()),
+                        noncash_sell=self.parse_float(cells[5].inner_text()),
                     )
-                except Exception:
-                    continue
-
         return rates
-
-    def _parse_float(self, value: str) -> Optional[float]:
-        if not value or value == "-" or value.strip() == "":
-            return None
-        try:
-            cleaned = value.replace(",", "").strip()
-            return float(cleaned)
-        except ValueError:
-            return None
