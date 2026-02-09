@@ -30,7 +30,7 @@
 | Чингис Хаан Банк   | CKBank        | Playwright |
 | ҮХОБ               | NIBank        | Playwright |
 | Транс Банк         | TransBank     | Playwright |
-| М Банк             | MBank         | Playwright |
+| М Банк             | MBank         | HTTP       |
 
 ## API endpoint-ууд
 

@@ -1,45 +1,39 @@
-"""MBank crawler using Playwright to intercept API response."""
-
 from typing import Dict
 
+import requests
+
 from app.config import config
-from app.crawlers.base import PlaywrightCrawler
+from app.crawlers.base import BaseCrawler
 from app.models.exchange_rate import CurrencyDetail
 
 
-class MBank(PlaywrightCrawler):
+class MBank(BaseCrawler):
     BANK_NAME = "MBank"
+    HEADERS = {
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/144.0.0.0 Safari/537.36",
+        "Accept": "application/json",
+        "Referer": "https://m-bank.mn/",
+        "Origin": "https://m-bank.mn",
+    }
 
-    def _crawl_page(self, page) -> Dict[str, CurrencyDetail]:
-        api_data = {}
+    def crawl(self) -> Dict[str, CurrencyDetail]:
+        session = requests.Session()
+        session.verify = self.ssl_verify
 
-        def handle_response(response):
-            if "api?name=getCurrencyList" in response.url:
-                try:
-                    api_data["result"] = response.json()
-                except Exception:
-                    pass
-
-        page.on("response", handle_response)
-        page.goto(
-            config.MBANK_URI,
+        session.post(
+            f"{config.MBANK_URI}api/login",
+            headers=self.HEADERS,
             timeout=self.timeout,
-            wait_until="networkidle",
         )
-
-        button = page.locator("xpath=/html/body/div/div/div[2]/button")
-        if button.count() > 0:
-            button.click()
-            page.wait_for_timeout(3000)
-        else:
-            alt = page.locator("text=Валютын ханш").first
-            if alt.count() > 0:
-                alt.click()
-                page.wait_for_timeout(3000)
-
-        if "result" in api_data:
-            return self._parse(api_data["result"])
-        return {}
+        
+        resp = session.get(
+            f"{config.MBANK_URI}api",
+            params={"name": "getCurrencyList"},
+            headers=self.HEADERS,
+            timeout=self.timeout,
+        )
+        resp.raise_for_status()
+        return self._parse(resp.json())
 
     def _parse(self, data: dict) -> Dict[str, CurrencyDetail]:
         rates = {}

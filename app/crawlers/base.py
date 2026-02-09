@@ -2,10 +2,14 @@ from abc import ABC, abstractmethod
 from typing import Dict, Optional
 
 import requests
+import urllib3
 from playwright.sync_api import sync_playwright
 
 from app.config import config
 from app.models.exchange_rate import CurrencyDetail, Rate
+
+if not config.SSL_VERIFY:
+    urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
 
 class BaseCrawler(ABC):

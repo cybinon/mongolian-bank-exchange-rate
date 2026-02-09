@@ -3,15 +3,21 @@ from typing import Dict
 from app.config import config
 from app.crawlers.base import BaseCrawler
 from app.models.exchange_rate import CurrencyDetail
+from app.utils.logger import logger
 
 
 class ArigBank(BaseCrawler):
     BANK_NAME = "ArigBank"
 
     def crawl(self) -> Dict[str, CurrencyDetail]:
+        token = (config.ARIGBANK_BEARER_TOKEN or "").strip()
+        if not token:
+            logger.warning("ArigBank: ARIGBANK_BEARER_TOKEN not configured")
+            return {}
+
         headers = {
             "Content-Type": "application/json",
-            "Authorization": f"Bearer {config.ARIGBANK_BEARER_TOKEN}",
+            "Authorization": f"Bearer {token}",
         }
         resp = self.post(
             config.ARIGBANK_API_URL,
@@ -19,7 +25,13 @@ class ArigBank(BaseCrawler):
             json={"rateDate": self.date.replace("-", "")},
         )
         resp.raise_for_status()
-        return self._parse(resp.json().get("data", []))
+
+        data = resp.json()
+        if not data.get("data") and data.get("message"):
+            logger.warning(f"ArigBank API error: {data.get('message')}")
+            return {}
+
+        return self._parse(data.get("data", []))
 
     def _parse(self, data: list) -> Dict[str, CurrencyDetail]:
         rates = {}
