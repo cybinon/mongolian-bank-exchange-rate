@@ -84,8 +84,11 @@ class TestXacBank:
 
 
 class TestArigBank:
+    @patch("app.crawlers.arigbank.config")
     @patch("app.crawlers.arigbank.BaseCrawler.post")
-    def test_crawl_success(self, mock_post):
+    def test_crawl_success(self, mock_post, mock_config):
+        mock_config.ARIGBANK_BEARER_TOKEN = "test-token"
+        mock_config.ARIGBANK_API_URL = "https://api.example.com"
         mock_resp = MagicMock()
         mock_resp.json.return_value = {
             "data": [
