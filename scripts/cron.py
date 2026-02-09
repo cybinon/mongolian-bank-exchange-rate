@@ -1,10 +1,12 @@
-"""Scheduled job runner for bank exchange rate crawling."""
+"""Scheduled job runner for bank exchange rate crawling.
+
+Runs hourly to ensure crawls happen even with Heroku dyno restarts.
+"""
 
 import time
 
 import schedule
 
-from app.config import config
 from app.db.database import init_db
 from app.services.scraper import ScraperService
 from app.utils.logger import logger
@@ -20,20 +22,13 @@ def job():
         logger.error(f"Crawl failed: {e}")
 
 
-def parse_cron(cron: str) -> str:
-    parts = cron.split()
-    if len(parts) == 5:
-        return f"{parts[1].zfill(2)}:{parts[0].zfill(2)}"
-    return "01:00"
-
-
 def main():
     ensure_playwright_browsers()
     init_db()
 
-    time_str = parse_cron(config.CRON_SCHEDULE)
-    schedule.every().day.at(time_str).do(job)
-    logger.info(f"Scheduled daily job at {time_str}")
+    # Run hourly to handle Heroku dyno restarts (every 24h)
+    schedule.every().hour.do(job)
+    logger.info("Scheduled hourly crawl job")
 
     logger.info("Running initial crawl")
     job()
