@@ -10,7 +10,11 @@ from app.models.exchange_rate import CurrencyDetail
 class MBank(BaseCrawler):
     BANK_NAME = "MBank"
     HEADERS = {
-        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/144.0.0.0 Safari/537.36",
+        "User-Agent": (
+            "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
+            "AppleWebKit/537.36 (KHTML, like Gecko) "
+            "Chrome/144.0.0.0 Safari/537.36"
+        ),
         "Accept": "application/json",
         "Referer": "https://m-bank.mn/",
         "Origin": "https://m-bank.mn",
@@ -25,7 +29,7 @@ class MBank(BaseCrawler):
             headers=self.HEADERS,
             timeout=self.timeout,
         )
-        
+
         resp = session.get(
             f"{config.MBANK_URI}api",
             params={"name": "getCurrencyList"},
